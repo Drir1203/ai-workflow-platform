@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme tokens now live in index.html <style> so Tailwind keeps var() refs.
+   (Moving them here would let Lightning CSS resolve the vars to literal
+   values and break runtime theme switching.) */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  background: rgb(var(--bg));
+}
+
+body {
+  @apply bg-bg text-ink;
+  font-family: theme('fontFamily.sans');
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(217, 164, 65, .32);
+  color: inherit;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--border-strong));
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.glass-panel {
+  background: var(--glass-panel);
+}
+
+.text-glow {
+  text-shadow: 0 0 8px rgba(217, 164, 65, .45);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

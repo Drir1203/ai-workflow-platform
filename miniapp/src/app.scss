@@ -1,0 +1,75 @@
+/* ===== ProjectHub AI · 黑金旗舰 token（DESIGN.md 唯一风格事实源） ===== */
+page {
+  --bg: #0C0C0B;
+  --bg-elev-1: #10100F;
+  --bg-elev-2: #141413;
+  --bg-active: #1C1B18;
+  --border: #232321;
+  --border-strong: #262621;
+  --ink: #F0EDE6;
+  --ink-2: #C9C4B8;
+  --ink-3: #8B877E;
+  --ink-4: #6E6C64;
+  --ink-5: #5C5A52;
+  --gold: #E8C078;
+  --gold-primary: #D9A441;
+  --gold-deep: #A9762B;
+  --gold-tint-bg: #2A2213;
+  --success: #7FD1A0;
+  --warning: #E5B567;
+  --error: #E57373;
+
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+/* 卡片（L2：内高光 + 深影，无霓虹外发光） */
+.card {
+  background: var(--bg-elev-2);
+  border: 1rpx solid var(--border-strong);
+  border-radius: 20rpx;
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.04), 0 20rpx 50rpx -36rpx rgba(0, 0, 0, 0.8);
+}
+
+/* 主按钮（金色渐变 + 深色字） */
+.btn-gold {
+  background: linear-gradient(135deg, #E8C078, #A9762B);
+  color: #1A1406;
+  border-radius: 16rpx;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 0 16rpx rgba(217, 164, 65, 0.3);
+}
+
+/* 次按钮（描边） */
+.btn-ghost {
+  background: transparent;
+  border: 1rpx solid var(--border-strong);
+  color: var(--ink-2);
+  border-radius: 16rpx;
+  text-align: center;
+}
+
+/* 金色状态点 */
+.gold-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: var(--gold-primary);
+  box-shadow: 0 0 10rpx rgba(217, 164, 65, 0.8);
+}
+
+/* 主文字数字：mono 金色 */
+.num {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+
+/* 弱化文字 */
+.muted {
+  color: var(--ink-4);
+}

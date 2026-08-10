@@ -1,0 +1,150 @@
+import { useCallback, useEffect, useState } from 'react'
+import { api, getSessionUser } from '../lib/api'
+import { demoApi } from '../lib/demo'
+import type { DataLayer, View } from '../lib/view'
+import type { Mode, Note, Project, Task } from '../types'
+import { AiPanel } from './AiPanel'
+import { Sidebar } from './Sidebar'
+import { Skeleton } from './ui/skeleton'
+import { TopBar } from './TopBar'
+import { DashboardPage } from '../pages/DashboardPage'
+import { ProjectPage } from '../pages/ProjectPage'
+
+export function Shell({ mode, onLogout }: { mode: Mode; onLogout?: () => void }) {
+  const layer: DataLayer = mode === 'demo' ? demoApi : api
+  const [view, setView] = useState<View>({ name: 'dashboard' })
+  const [projects, setProjects] = useState<Project[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [notes, setNotes] = useState<Note[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const user = mode === 'live' ? getSessionUser() : null
+
+  const refresh = useCallback(async () => {
+    try {
+      const [p, t, n] = await Promise.all([
+        layer.listProjects(),
+        layer.listTasks(),
+        layer.listNotes(),
+      ])
+      setProjects(p)
+      setTasks(t)
+      setNotes(n)
+      setError('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '加载失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [layer])
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  const handlers = {
+    createProject: async (name: string, description?: string, repoUrl?: string, deployUrl?: string) => {
+      await layer.createProject({ name, description, repo_url: repoUrl || undefined, deploy_url: deployUrl || undefined })
+      await refresh()
+    },
+    deleteProject: async (id: string) => {
+      await layer.deleteProject(id)
+      await refresh()
+      if (view.name === 'project' && view.id === id) setView({ name: 'dashboard' })
+    },
+    createTask: async (t: { project_id: string; title: string; priority?: string }) => {
+      await layer.createTask(t)
+      await refresh()
+    },
+    toggleTask: async (task: Task) => {
+      await layer.updateTask(task.id, { status: task.status === 'done' ? 'todo' : 'done' })
+      await refresh()
+    },
+    deleteTask: async (id: string) => {
+      await layer.deleteTask(id)
+      await refresh()
+    },
+    createNote: async (n: { project_id: string; title: string; content?: string }) => {
+      await layer.createNote(n)
+      await refresh()
+    },
+    updateNote: async (id: string, patch: Partial<Note>) => {
+      await layer.updateNote(id, patch)
+      await refresh()
+    },
+    deleteNote: async (id: string) => {
+      await layer.deleteNote(id)
+      await refresh()
+    },
+  }
+
+  return (
+    <div className="flex h-dvh flex-col bg-bg">
+      <TopBar mode={mode} user={user} onLogout={onLogout} />
+      {mode === 'demo' && (
+        <div className="flex items-center gap-2 border-b border-gold/15 bg-gold-tint/40 px-5 py-1.5 text-[11px] text-gold">
+          <span className="h-1.5 w-1.5 animate-pulseDot rounded-full bg-gold" style={{ boxShadow: '0 0 6px rgba(217,164,65,.8)' }} />
+          演示模式 · 后端未连接，展示结构样例数据；启动后端后自动切换真实数据
+        </div>
+      )}
+      {error && (
+        <div className="border-b border-error/20 bg-error/10 px-5 py-1.5 text-[11px] text-error">{error}</div>
+      )}
+      <div className="flex min-h-0 flex-1">
+        <Sidebar projects={projects} view={view} onSelect={setView} />
+        <main className="min-w-0 flex-1 overflow-y-auto">
+          {loading ? (
+            <ShellSkeleton />
+          ) : view.name === 'dashboard' ? (
+            <DashboardPage
+              projects={projects}
+              tasks={tasks}
+              notes={notes}
+              onOpenProject={(id) => setView({ name: 'project', id })}
+              onCreateProject={handlers.createProject}
+            />
+          ) : (
+            <ProjectPage
+              project={projects.find((p) => p.id === view.id)}
+              tasks={tasks.filter((t) => t.project_id === view.id)}
+              notes={notes.filter((n) => n.project_id === view.id)}
+              onBack={() => setView({ name: 'dashboard' })}
+              onCreateTask={handlers.createTask}
+              onToggleTask={handlers.toggleTask}
+              onDeleteTask={handlers.deleteTask}
+              onCreateNote={handlers.createNote}
+              onUpdateNote={handlers.updateNote}
+              onDeleteNote={handlers.deleteNote}
+              onDeleteProject={handlers.deleteProject}
+            />
+          )}
+        </main>
+      </div>
+      <AiPanel layer={layer} />
+    </div>
+  )
+}
+
+function ShellSkeleton() {
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="mt-2 h-3 w-56" />
+        </div>
+        <Skeleton className="h-9 w-24" />
+      </div>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-card" />
+        ))}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-44 rounded-card" />
+        ))}
+      </div>
+    </div>
+  )
+}

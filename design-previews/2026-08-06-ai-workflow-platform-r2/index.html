@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设计方向预览 R2 — AI 工作流平台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ============ 壳（中性克制） ============ */
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif;background:#f4f4f2;color:#1a1a1a}
+.bar{padding:18px 28px;border-bottom:1px solid #dcdcd8;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:#fff}
+.bar .task{font-weight:650;font-size:15px}
+.bar .hint{font-size:13px;color:#6b6b66}
+.dials{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:12px;padding:16px 28px;border-bottom:1px solid #dcdcd8;background:#fff}
+.dial{display:grid;gap:6px;font-size:13px}.dial b{font-weight:650}
+.dial output{font-variant-numeric:tabular-nums;font-weight:600}
+.dial input{accent-color:#1a1a1a}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;padding:26px 28px 40px}
+.card{background:#fff;border:2px solid #e4e4e0;border-radius:14px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;min-width:0;transition:border-color .15s, box-shadow .15s}
+.card:hover{border-color:#c9c9c4}
+.card.selected{border-color:#141412;box-shadow:0 0 0 1px #141412}
+.mock{height:330px;overflow:hidden;position:relative;display:grid;place-items:center;background:#fbfbfa}
+.mock>.stage{width:960px;height:600px;transform:scale(.53);transform-origin:center center;flex:none}
+.meta{padding:14px 18px 16px;display:flex;flex-direction:column;gap:12px;min-width:0;width:100%}
+.meta-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.meta h3{margin:0;font-size:16px;font-weight:700}
+.meta .tag{font-size:12px;color:#8a8a84;font-weight:500}
+.qmdp-pick-button{position:relative;z-index:1;width:100%;min-height:44px;border:1px solid #1a1a1a;background:#fff;color:#1a1a1a;border-radius:9px;font-size:14px;font-weight:650;cursor:pointer;font-family:inherit;transition:background .12s,color .12s}
+.qmdp-pick-button:hover{background:#1a1a1a;color:#fff}
+.card.selected .qmdp-pick-button{background:#1a1a1a;color:#fff}
+.notes{padding:0 28px 40px;max-width:1200px;margin:0 auto;display:grid;gap:14px}
+.notes h4{margin:0 0 4px;font-size:13px;letter-spacing:.06em;color:#8a8a84;text-transform:uppercase}
+.note{background:#fff;border:1px solid #e4e4e0;border-radius:12px;padding:14px 18px;font-size:13.5px;line-height:1.7;color:#2c2c29}
+.note b{font-weight:650}
+.note .rec{display:block;margin-top:6px;color:#8a3d00;font-weight:600}
+.confirm{position:fixed;inset:0;display:none;place-items:center;background:rgb(0 0 0 / 32%);z-index:20;padding:16px}
+.confirm.open{display:grid}
+.dialog{width:min(520px,100%);background:#fff;border-radius:14px;padding:22px}
+.dialog h2{margin:0 0 10px;font-size:18px}
+.dialog p{margin:0 0 14px;font-size:14px;color:#4a4a46;line-height:1.6}
+.dialog textarea{width:100%;min-height:84px;resize:vertical;border:1px solid #d4d4d0;border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px}
+.dialog .btns{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+.dialog button{border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent}
+#cancelPick{background:#f1f1ef;color:#333}
+#confirmPick{background:#1a1a1a;color:#fff}
+.pickbar{position:fixed;bottom:0;left:0;right:0;padding:14px;background:#1a1a1a;color:#fff;text-align:center;transform:translateY(100%);transition:transform 200ms cubic-bezier(.23,1,.32,1);font-size:14px;z-index:15}
+.pickbar.show{transform:translateY(0)}
+@media (max-width:760px){
+  .bar{padding:14px 16px}
+  .dials{grid-template-columns:1fr;padding:14px 16px}
+  .grid{grid-template-columns:1fr;padding:14px 16px}
+  .mock{height:260px}
+  .mock>.stage{transform:scale(.41)}
+  .notes{padding:0 16px 40px}
+}
+</style>
+</head>
+<body>
+  <div class="bar"><span class="task">AI 工作流平台 · 方向样机 R2（高级 AI 质感）</span>
+    <span class="hint">方向样机，不是最终 App/页面 · 键盘 1-4 选择</span></div>
+
+  <div class="dials" data-qmdp-dials aria-label="设计拨盘">
+    <label class="dial"><b>视觉冒险度 <output id="varianceOut" data-qmdp-output="variance">8</output></b><input id="variance" data-qmdp-dial="variance" type="range" min="1" max="10" value="8"></label>
+    <label class="dial"><b>动效强度 <output id="motionOut" data-qmdp-output="motion">7</output></b><input id="motion" data-qmdp-dial="motion" type="range" min="1" max="10" value="7"></label>
+    <label class="dial"><b>信息密度 <output id="densityOut" data-qmdp-output="density">5</output></b><input id="density" data-qmdp-dial="density" type="range" min="1" max="10" value="5"></label>
+  </div>
+
+  <div class="grid">
+    <!-- ============ A′ 黑金旗舰 Obsidian ============ -->
+    <div class="card" data-dir="A" data-rec>
+      <div class="mock"><div class="stage dir-a">
+        <div class="a-app">
+          <div class="a-top">
+            <div class="a-brand"><span class="a-mark"></span><span class="a-logo">ProjectHub AI</span></div>
+            <div class="a-nav"><span class="a-nv a-on">工作台</span><span class="a-nv">项目</span><span class="a-nv">任务</span><span class="a-nv">AI 助手</span><span class="a-nv">设置</span></div>
+            <div class="a-right"><span class="a-env">PRO</span><span class="a-avatar">林</span></div>
+          </div>
+          <div class="a-body">
+            <div class="a-side">
+              <div class="a-cap">项目</div>
+              <div class="a-item a-on"><span class="a-dot"></span>CrossBorder AI</div>
+              <div class="a-item"><span class="a-dot a-d2"></span>面试教练</div>
+              <div class="a-item"><span class="a-dot a-d3"></span>内容基地</div>
+              <div class="a-cap a-cap2">视图</div>
+              <div class="a-item">今日</div>
+              <div class="a-item">看板</div>
+            </div>
+            <div class="a-main">
+              <div class="a-hello">早上好，林</div>
+              <div class="a-sub">3 个项目 · 7 项待办 · 1 条巡检异常</div>
+              <div class="a-cards">
+                <div class="a-card">
+                  <div class="a-row"><span class="a-name">CrossBorder AI</span><span class="a-pill"><span class="a-pdot"></span>巡检正常</span></div>
+                  <div class="a-nums"><span class="a-num">92.6<span class="a-unit">%</span></span><span class="a-lbl">本周覆盖率</span></div>
+                  <div class="a-foot"><span class="a-meta">待办 3</span><span class="a-meta">更新于 14:02</span></div>
+                </div>
+                <div class="a-card">
+                  <div class="a-row"><span class="a-name">面试教练</span><span class="a-pill a-pw"><span class="a-pdot a-pw"></span>1 待回复</span></div>
+                  <div class="a-nums"><span class="a-num">12<span class="a-unit">次</span></span><span class="a-lbl">本周训练</span></div>
+                  <div class="a-foot"><span class="a-meta">押题 6 套</span><span class="a-meta">通过率 78.3%</span></div>
+                </div>
+              </div>
+              <div class="a-tasks">
+                <div class="a-th"><span>今日任务</span><span class="a-meta">3 项</span></div>
+                <div class="a-tr"><span class="a-box a-done"></span><span class="a-tt">巡检 1688 商品数据源</span><span class="a-td">已过期 2 小时</span></div>
+                <div class="a-tr"><span class="a-box"></span><span class="a-tt">更新面试押题题库 v3</span><span class="a-td">今天</span></div>
+                <div class="a-tr"><span class="a-box"></span><span class="a-tt">整理本周竞品调研</span><span class="a-td">今天</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="a-ai"><span class="a-ai-mark">AI</span><span class="a-ai-ph">问 AI：今天有什么要跟进？</span><span class="a-ai-go">发送</span></div>
+        </div>
+      </div></div>
+      <div class="meta">
+        <div class="meta-row"><h3>A · 黑金旗舰</h3><span class="tag">Obsidian · 黑金奢华</span></div>
+        <button class="qmdp-pick-button" type="button">选择 A · 黑金旗舰</button>
+      </div>
+    </div>
+
+    <!-- ============ B′ 通透光感 Lumen ============ -->
+    <div class="card" data-dir="B">
+      <div class="mock"><div class="stage dir-b">
+        <div class="b-app">
+          <div class="b-top">
+            <div class="b-brand"><span class="b-mark"></span><span class="b-logo">ProjectHub AI</span></div>
+            <div class="b-nav"><span class="b-nv b-on">工作台</span><span class="b-nv">项目</span><span class="b-nv">任务</span><span class="b-nv">AI 助手</span></div>
+            <div class="b-avatar">林</div>
+          </div>
+          <div class="b-body">
+            <div class="b-side">
+              <div class="b-cap">项目</div>
+              <div class="b-item b-on"><span class="b-dot"></span>CrossBorder AI</div>
+              <div class="b-item"><span class="b-dot b-d2"></span>面试教练</div>
+              <div class="b-item"><span class="b-dot b-d3"></span>内容基地</div>
+              <div class="b-spacer"></div>
+              <div class="b-item">今日 · 7 项待办</div>
+            </div>
+            <div class="b-main">
+              <div class="b-hello">早上好，林</div>
+              <div class="b-sub">所有项目运行平稳，AI 已整理好今日重点</div>
+              <div class="b-cards">
+                <div class="b-card">
+                  <div class="b-row"><span class="b-name">CrossBorder AI</span><span class="b-status">巡检正常</span></div>
+                  <div class="b-stat"><span class="b-big">92.6<span class="b-unit">%</span></span><span class="b-cap2">本周覆盖率</span></div>
+                  <div class="b-row2"><span class="b-meta">待办 3 项</span><span class="b-meta">更新于 14:02</span></div>
+                </div>
+                <div class="b-card">
+                  <div class="b-row"><span class="b-name">面试教练</span><span class="b-status b-st2">1 待回复</span></div>
+                  <div class="b-stat"><span class="b-big">12<span class="b-unit">次</span></span><span class="b-cap2">本周训练</span></div>
+                  <div class="b-row2"><span class="b-meta">押题 6 套</span><span class="b-meta">通过率 78.3%</span></div>
+                </div>
+              </div>
+              <div class="b-tasks">
+                <div class="b-th">今日任务</div>
+                <div class="b-tr"><span class="b-check"></span><span class="b-tt">巡检 1688 商品数据源</span><span class="b-td">已过期 2 小时</span></div>
+                <div class="b-tr"><span class="b-check b-done"></span><span class="b-tt">更新面试押题题库 v3</span><span class="b-td">今天</span></div>
+                <div class="b-tr"><span class="b-check"></span><span class="b-tt">整理本周竞品调研</span><span class="b-td">今天</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="b-ai"><span class="b-ai-title">AI 助手</span><span class="b-ai-ph">问 AI：今天有什么要跟进？</span><span class="b-ai-go">发送</span></div>
+        </div>
+      </div></div>
+      <div class="meta">
+        <div class="meta-row"><h3>B · 通透光感</h3><span class="tag">Lumen · 亮色高定</span></div>
+        <button class="qmdp-pick-button" type="button">选择 B · 通透光感</button>
+      </div>
+    </div>
+
+    <!-- ============ C′ 深空科技 Nebula ============ -->
+    <div class="card" data-dir="C">
+      <div class="mock"><div class="stage dir-c">
+        <div class="c-app">
+          <div class="c-top">
+            <div class="c-brand"><span class="c-mark"></span><span class="c-logo">ProjectHub AI</span></div>
+            <div class="c-tabs"><span class="c-tab c-on">工作台</span><span class="c-tab">项目</span><span class="c-tab">任务</span><span class="c-tab">AI 助手</span></div>
+            <div class="c-right"><span class="c-env">PRO</span><span class="c-avatar">林</span></div>
+          </div>
+          <div class="c-body">
+            <div class="c-side">
+              <div class="c-cap">PROJECTS</div>
+              <div class="c-item c-on"><span class="c-ic"></span>crossborder-ai</div>
+              <div class="c-item"><span class="c-ic c-i2"></span>interview-coach</div>
+              <div class="c-item"><span class="c-ic c-i3"></span>content-base</div>
+              <div class="c-cap c-cap2">QUEUES</div>
+              <div class="c-item"><span class="c-dot"></span>今日 7</div>
+              <div class="c-item"><span class="c-dot c-d2"></span>看板 3</div>
+            </div>
+            <div class="c-main">
+              <div class="c-hello">早上好，林 <span class="c-badge">2 NEW</span></div>
+              <div class="c-cards">
+                <div class="c-card c-feat">
+                  <div class="c-row"><span class="c-name">crossborder-ai</span><span class="c-pill"><span class="c-pdot"></span>巡检正常</span></div>
+                  <div class="c-stat"><span class="c-num">92.6%</span><span class="c-lbl">覆盖率</span></div>
+                  <div class="c-foot"><span class="c-meta">todo 3</span><span class="c-meta">14:02</span></div>
+                </div>
+                <div class="c-card">
+                  <div class="c-row"><span class="c-name">interview-coach</span><span class="c-pill c-pw"><span class="c-pdot c-pw"></span>1 待回复</span></div>
+                  <div class="c-stat"><span class="c-num">12</span><span class="c-lbl">训练次数</span></div>
+                  <div class="c-foot"><span class="c-meta">押题 6</span><span class="c-meta">78.3%</span></div>
+                </div>
+                <div class="c-card">
+                  <div class="c-row"><span class="c-name">content-base</span><span class="c-pill c-pb"><span class="c-pdot c-pb"></span>草稿 2</span></div>
+                  <div class="c-stat"><span class="c-num">8.4</span><span class="c-lbl">本周发文</span></div>
+                  <div class="c-foot"><span class="c-meta">阅读 2.1k</span><span class="c-meta">互动 47.2%</span></div>
+                </div>
+              </div>
+              <div class="c-tasks">
+                <div class="c-th">TODAY · 3</div>
+                <div class="c-tr"><span class="c-ck c-done"></span><span class="c-tt">巡检 1688 商品数据源</span><span class="c-td">过期 2h</span></div>
+                <div class="c-tr"><span class="c-ck"></span><span class="c-tt">更新面试押题题库 v3</span><span class="c-td">today</span></div>
+                <div class="c-tr"><span class="c-ck"></span><span class="c-tt">整理本周竞品调研</span><span class="c-td">today</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="c-cmd"><span class="c-cmd-mark">AI</span><span class="c-cmd-ph">输入指令，或提问工作台……</span><span class="c-cmd-k">↵</span></div>
+        </div>
+      </div></div>
+      <div class="meta">
+        <div class="meta-row"><h3>C · 深空科技</h3><span class="tag">Nebula · 深蓝黑科技</span></div>
+        <button class="qmdp-pick-button" type="button">选择 C · 深空科技</button>
+      </div>
+    </div>
+
+    <!-- ============ D′ 晶体极光 Crystal ============ -->
+    <div class="card" data-dir="D">
+      <div class="mock"><div class="stage dir-d">
+        <div class="d-app">
+          <div class="d-top">
+            <div class="d-brand"><span class="d-mark"></span><span class="d-logo">ProjectHub AI</span></div>
+            <div class="d-nav"><span class="d-nv d-on">工作台</span><span class="d-nv">项目</span><span class="d-nv">任务</span><span class="d-nv">AI 助手</span></div>
+            <div class="d-avatar">林</div>
+          </div>
+          <div class="d-body">
+            <div class="d-side">
+              <div class="d-cap">项目</div>
+              <div class="d-item d-on">CrossBorder AI</div>
+              <div class="d-item">面试教练</div>
+              <div class="d-item">内容基地</div>
+              <div class="d-spacer"></div>
+              <div class="d-item">今日 · 7 项待办</div>
+            </div>
+            <div class="d-main">
+              <div class="d-hello">早上好，林</div>
+              <div class="d-sub">3 个项目 · AI 已整理好今日重点</div>
+              <div class="d-cards">
+                <div class="d-card">
+                  <div class="d-row"><span class="d-name">CrossBorder AI</span><span class="d-status">巡检正常</span></div>
+                  <div class="d-stat"><span class="d-big">92.6%</span><span class="d-cap2">本周覆盖率</span></div>
+                  <div class="d-row2"><span class="d-meta">待办 3 项</span><span class="d-meta">更新于 14:02</span></div>
+                </div>
+                <div class="d-card">
+                  <div class="d-row"><span class="d-name">面试教练</span><span class="d-status d-st2">1 待回复</span></div>
+                  <div class="d-stat"><span class="d-big">12 次</span><span class="d-cap2">本周训练</span></div>
+                  <div class="d-row2"><span class="d-meta">押题 6 套</span><span class="d-meta">通过率 78.3%</span></div>
+                </div>
+              </div>
+              <div class="d-tasks">
+                <div class="d-th">今日任务</div>
+                <div class="d-tr"><span class="d-check"></span><span class="d-tt">巡检 1688 商品数据源</span><span class="d-td">已过期 2 小时</span></div>
+                <div class="d-tr"><span class="d-check d-done"></span><span class="d-tt">更新面试押题题库 v3</span><span class="d-td">今天</span></div>
+                <div class="d-tr"><span class="d-check"></span><span class="d-tt">整理本周竞品调研</span><span class="d-td">今天</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="d-ai"><span class="d-ai-mark">AI</span><span class="d-ai-ph">问 AI：今天有什么要跟进？</span><span class="d-ai-go">发送</span></div>
+        </div>
+      </div></div>
+      <div class="meta">
+        <div class="meta-row"><h3>D · 晶体极光</h3><span class="tag">Crystal · 玻璃氛围</span></div>
+        <button class="qmdp-pick-button" type="button">选择 D · 晶体极光</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h4>方向说明（R2 · 高级 AI 质感）</h4>
+    <div class="note"><b>A · 黑金旗舰（推荐）</b> — 深黑 + 香槟金，奢华的"AI 指挥中心"，最高级的 AI 质感且最贴琥珀金品牌。材质：内边框高光 + 色调阴影表达深度，无霓虹。字体：Instrument Sans + 等宽数字，数字用香槟金。<span class="rec">推荐理由：黑金是"高级 AI"的原型语言，同时延续你的金色品牌，三端通用最稳</span></div>
+    <div class="note"><b>B · 通透光感</b> — 亮色高定：暖白 + 深咖啡墨 + 金色发光点缀，多层柔光阴影 + 玻璃高光。比第一轮 B 更精致更有"高级成衣感"。字体：Fraunces 衬线数字 + 无衬线正文。<span class="rec">适合：想要亮色但必须高级，不想要深色的场景</span></div>
+    <div class="note"><b>C · 深空科技</b> — 深蓝黑 + 香槟金主色 + 青色信息色，最"AI 平台"的科技感（类 Dify 深色），聚焦卡带金色发丝边框。字体：Sora + JetBrains Mono。<span class="rec">适合：想要最强"AI 科技公司"即视感</span></div>
+    <div class="note"><b>D · 晶体极光</b> — 克制玻璃 + 暖琥珀氛围光，浮动毛玻璃面板，最有"AI 实验室"气质；氛围光为琥珀色系（非紫蓝烂梗）。字体：Fraunces 标题 + 等宽数字。<span class="rec">适合：想要未来感 + 独特材质的</span></div>
+  </div>
+
+  <div class="confirm" id="confirm" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="dialog">
+      <h2 id="confirmTitle">确认设计方向</h2>
+      <p id="confirmMeta"></p>
+      <textarea id="adjustments" placeholder="可选：写下想调整的地方，比如更稳一点、要 B 的字体 + C 的配色"></textarea>
+      <div class="btns">
+        <button type="button" id="cancelPick">取消</button>
+        <button type="button" id="confirmPick">确认并回传</button>
+      </div>
+    </div>
+  </div>
+  <div class="pickbar" id="pickbar"></div>
+
+<style>
+/* ============ A · 黑金旗舰 Obsidian（scoped） ============ */
+.dir-a{font-family:"Instrument Sans",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#0C0C0B;color:#F0EDE6;display:flex;flex-direction:column;width:960px;height:600px;overflow:hidden}
+.a-app{display:flex;flex-direction:column;height:100%}
+.a-top{display:flex;align-items:center;gap:24px;padding:0 22px;height:54px;background:#10100F;border-bottom:1px solid #232321;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.a-mark{width:10px;height:10px;border-radius:2px;background:linear-gradient(135deg,#E8C078,#A9762B);display:inline-block;margin-right:10px;box-shadow:0 0 8px rgba(217,164,65,.45)}
+.a-logo{font-weight:650;font-size:14px;letter-spacing:-.01em;color:#F0EDE6}
+.a-nav{display:flex;gap:2px;margin-left:8px}
+.a-nv{font-size:12.5px;color:#8B877E;padding:5px 10px;border-radius:7px}
+.a-nv.a-on{background:#1C1B18;color:#E8C078;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.a-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.a-env{font-size:9.5px;font-weight:700;letter-spacing:.1em;color:#E8C078;border:1px solid #3A3321;background:#141310;padding:3px 7px;border-radius:5px;font-family:"JetBrains Mono",monospace}
+.a-avatar{width:24px;height:24px;border-radius:999px;background:linear-gradient(135deg,#E8C078,#A9762B);color:#141310;font-size:11px;display:grid;place-items:center;font-weight:700}
+.a-body{display:flex;flex:1;min-height:0}
+.a-side{width:188px;border-right:1px solid #232321;padding:16px 12px;background:#0E0E0D}
+.a-cap{font-size:10px;letter-spacing:.1em;color:#5C5A52;font-weight:600;margin:0 8px 8px;font-family:"JetBrains Mono",monospace}
+.a-cap2{margin-top:20px}
+.a-item{display:flex;align-items:center;gap:9px;font-size:12.5px;color:#8B877E;padding:7px 8px;border-radius:7px;margin-bottom:2px}
+.a-item.a-on{background:#1C1B18;color:#F0EDE6;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.a-dot{width:6px;height:6px;border-radius:999px;background:#E8C078;flex:none;box-shadow:0 0 6px rgba(232,192,120,.5)}
+.a-d2{background:#6B6A62}.a-d3{background:#5C6B5C}
+.a-main{flex:1;padding:20px 24px;min-width:0;display:flex;flex-direction:column;gap:14px}
+.a-hello{font-size:19px;font-weight:650;letter-spacing:-.02em;color:#F0EDE6}
+.a-sub{font-size:12px;color:#6E6C64;margin-top:-10px}
+.a-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.a-card{background:#141413;border:1px solid #262621;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 30px -18px rgba(0,0,0,.8)}
+.a-row{display:flex;justify-content:space-between;align-items:center}
+.a-name{font-size:13px;font-weight:600;color:#F0EDE6}
+.a-pill{display:flex;align-items:center;gap:6px;font-size:10.5px;color:#E8C078;background:#2A2213;padding:3px 8px;border-radius:999px;font-weight:600}
+.a-pw{color:#C9C2B0;background:#22211C}
+.a-pdot{width:5px;height:5px;border-radius:999px;background:#7FD1A0;box-shadow:0 0 5px rgba(127,209,160,.6)}
+.a-pw .a-pdot{background:#8B877E}
+.a-nums{display:flex;align-items:baseline;gap:9px}
+.a-num{font-family:"JetBrains Mono",monospace;font-size:23px;font-weight:600;color:#E8C078;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.a-unit{font-size:11px;color:#6E6C64;font-weight:500}
+.a-lbl{font-size:11px;color:#6E6C64}
+.a-foot{display:flex;justify-content:space-between;border-top:1px solid #22221D;padding-top:9px}
+.a-meta{font-size:10.5px;color:#5C5A52;font-variant-numeric:tabular-nums;font-family:"JetBrains Mono",monospace}
+.a-tasks{border:1px solid #262621;border-radius:10px;background:#141413;padding:3px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.a-th{font-size:12px;font-weight:600;color:#F0EDE6;padding:10px 14px 8px;display:flex;justify-content:space-between;align-items:center}
+.a-tr{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid #22221D}
+.a-box{width:14px;height:14px;border:1.5px solid #4A4941;border-radius:4px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.a-box.a-done{background:linear-gradient(135deg,#E8C078,#A9762B);border-color:transparent}
+.a-tt{font-size:12px;color:#C9C4B8}
+.a-td{margin-left:auto;font-size:10.5px;color:#5C5A52;font-family:"JetBrains Mono",monospace}
+.a-ai{display:flex;align-items:center;gap:11px;margin:0 24px 20px;border:1px solid #2A2A24;border-radius:11px;background:rgba(255,248,232,.035);backdrop-filter:blur(14px);padding:10px 13px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 10px 30px -18px rgba(0,0,0,.8)}
+.a-ai-mark{font-size:10px;font-weight:700;color:#141310;background:linear-gradient(135deg,#E8C078,#A9762B);padding:3px 7px;border-radius:6px}
+.a-ai-ph{font-size:12.5px;color:#6E6C64;flex:1}
+.a-ai-go{font-size:12px;font-weight:600;color:#E8C078}
+
+/* ============ B · 通透光感 Lumen（scoped） ============ */
+.dir-b{font-family:"Instrument Sans",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#FBF8F3;color:#221C14;display:flex;flex-direction:column;width:960px;height:600px;overflow:hidden}
+.b-app{display:flex;flex-direction:column;height:100%}
+.b-top{display:flex;align-items:center;gap:26px;padding:0 26px;height:58px;background:#FFFDF9;border-bottom:1px solid #ECE5D8;box-shadow:0 1px 0 rgba(255,255,255,.6)}
+.b-mark{width:11px;height:11px;border-radius:3px;background:linear-gradient(135deg,#E0A83E,#B57F2B);display:inline-block;margin-right:10px;box-shadow:0 2px 8px -2px rgba(183,127,43,.5)}
+.b-logo{font-family:"Fraunces",serif;font-size:17px;font-weight:600;color:#221C14;letter-spacing:-.01em}
+.b-nav{display:flex;gap:4px;margin-left:4px}
+.b-nv{font-size:13px;color:#8A8378;padding:6px 13px;border-radius:999px}
+.b-nv.b-on{background:#FFFDF9;color:#A4691B;font-weight:600;box-shadow:0 1px 4px rgba(74,46,13,.10),inset 0 0 0 1px rgba(183,127,43,.18)}
+.b-avatar{margin-left:auto;width:26px;height:26px;border-radius:999px;background:linear-gradient(135deg,#E8C9A0,#D9A86A);color:#fff;font-size:11px;display:grid;place-items:center;font-weight:700;box-shadow:0 2px 6px -2px rgba(74,46,13,.4)}
+.b-body{display:flex;flex:1;min-height:0}
+.b-side{width:196px;padding:24px 20px;border-right:1px solid #EFE8DC}
+.b-cap{font-size:11px;letter-spacing:.12em;color:#B3A98F;font-weight:600;margin:0 4px 10px}
+.b-item{display:flex;align-items:center;gap:9px;font-size:13px;color:#5A554B;padding:8px 10px;border-radius:11px;margin-bottom:2px}
+.b-item.b-on{background:#FFFDF9;color:#3A352C;font-weight:600;box-shadow:0 1px 5px rgba(74,46,13,.08),inset 0 0 0 1px rgba(183,127,43,.12)}
+.b-dot{width:7px;height:7px;border-radius:999px;background:linear-gradient(135deg,#E0A83E,#B57F2B)}
+.b-d2{background:#8A7A5C}.b-d3{background:#6B7C8F}
+.b-spacer{flex:1}
+.b-main{flex:1;padding:26px 30px;min-width:0;display:flex;flex-direction:column;gap:16px}
+.b-hello{font-family:"Fraunces",serif;font-size:24px;font-weight:500;letter-spacing:-.01em;color:#221C14}
+.b-sub{font-size:12.5px;color:#8A8378;margin-top:-8px}
+.b-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.b-card{background:#FFFFFF;border-radius:18px;padding:18px;box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(74,46,13,.05),0 16px 40px -22px rgba(74,46,13,.22);display:flex;flex-direction:column;gap:12px;border:1px solid #F0E9DC}
+.b-row{display:flex;justify-content:space-between;align-items:center}
+.b-name{font-size:13.5px;font-weight:600}
+.b-status{font-size:11px;color:#A4691B;background:linear-gradient(180deg,#FBF3E4,#F6EAD3);padding:3px 10px;border-radius:999px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
+.b-st2{color:#7A5A20;background:linear-gradient(180deg,#FBF5E8,#F5EDDA)}
+.b-stat{display:flex;align-items:baseline;gap:10px}
+.b-big{font-family:"Fraunces",serif;font-size:28px;font-weight:600;color:#B57F2B;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.b-unit{font-size:14px;color:#C0A97E}
+.b-cap2{font-size:11px;color:#A69C88}
+.b-row2{display:flex;justify-content:space-between;border-top:1px solid #F3EDE0;padding-top:10px}
+.b-meta{font-size:11px;color:#A69C88;font-variant-numeric:tabular-nums}
+.b-tasks{border-radius:18px;background:#FFFFFF;padding:6px 18px;box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(74,46,13,.04),0 14px 34px -24px rgba(74,46,13,.18);border:1px solid #F0E9DC}
+.b-th{font-family:"Fraunces",serif;font-size:14px;font-weight:600;color:#221C14;padding:13px 0 6px}
+.b-tr{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid #F3EDE0}
+.b-check{width:15px;height:15px;border-radius:50%;border:1.5px solid #D9CBB2;flex:none;background:radial-gradient(circle at 30% 30%,#fff,#F6F0E2)}
+.b-check.b-done{background:linear-gradient(135deg,#E0A83E,#B57F2B);border-color:transparent}
+.b-tt{font-size:12.5px;color:#4A453B}
+.b-td{margin-left:auto;font-size:11px;color:#A69C88;font-variant-numeric:tabular-nums}
+.b-ai{display:flex;align-items:center;gap:12px;margin:0 30px 22px;border:1px solid #EFE5D2;border-radius:15px;background:rgba(255,253,249,.82);backdrop-filter:blur(16px);padding:11px 14px;box-shadow:inset 0 1px 0 #fff,0 8px 28px -16px rgba(74,46,13,.25)}
+.b-ai-title{font-family:"Fraunces",serif;font-size:13px;font-weight:600;color:#B57F2B}
+.b-ai-ph{font-size:12.5px;color:#B3A98F;flex:1}
+.b-ai-go{font-size:12.5px;font-weight:600;color:#fff;background:linear-gradient(135deg,#E0A83E,#B57F2B);padding:6px 15px;border-radius:999px;box-shadow:0 2px 8px -2px rgba(183,127,43,.5)}
+
+/* ============ C · 深空科技 Nebula（scoped） ============ */
+.dir-c{font-family:"Sora",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#0A0F16;color:#E7ECF3;display:flex;flex-direction:column;width:960px;height:600px;overflow:hidden}
+.c-app{display:flex;flex-direction:column;height:100%}
+.c-top{display:flex;align-items:center;gap:18px;padding:0 18px;height:50px;background:#0D141D;border-bottom:1px solid #1D2836;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.c-mark{width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,#E8C078,#A9762B);display:inline-block;margin-right:9px;box-shadow:0 0 10px rgba(226,184,92,.5)}
+.c-logo{font-weight:650;font-size:14px;letter-spacing:-.01em}
+.c-tabs{display:flex;gap:2px;margin-left:6px}
+.c-tab{font-size:12px;color:#7E8BA0;padding:5px 12px;border-radius:7px}
+.c-tab.c-on{background:#121A28;color:#E7ECF3;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.c-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.c-env{font-size:9.5px;font-weight:700;letter-spacing:.1em;color:#E2B85C;border:1px solid #3A4A3A;background:#10171F;padding:3px 7px;border-radius:5px;font-family:"JetBrains Mono",monospace}
+.c-avatar{width:23px;height:23px;border-radius:7px;background:linear-gradient(135deg,#E2B85C,#A9762B);color:#0A0F16;font-size:10px;display:grid;place-items:center;font-weight:700}
+.c-body{display:flex;flex:1;min-height:0}
+.c-side{width:176px;background:#0C121A;border-right:1px solid #1D2836;padding:14px 10px}
+.c-cap{font-size:10px;letter-spacing:.1em;color:#566170;font-weight:600;margin:0 8px 8px;font-family:"JetBrains Mono",monospace}
+.c-cap2{margin-top:20px}
+.c-item{display:flex;align-items:center;gap:8px;font-size:12px;color:#8B98AB;padding:6px 8px;border-radius:7px;margin-bottom:2px}
+.c-item.c-on{background:#121A28;color:#E7ECF3;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.c-ic{width:12px;height:12px;border-radius:3px;background:#1D2836;flex:none;position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.c-ic::after{content:"";position:absolute;right:1px;bottom:1px;width:5px;height:5px;background:#E2B85C;border-radius:1px}
+.c-i2::after{background:#6ECBB8}.c-i3::after{background:#6B7C8F}
+.c-dot{width:6px;height:6px;border-radius:999px;background:#566170;flex:none}
+.c-d2{background:#E2B85C}
+.c-main{flex:1;padding:16px 18px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.c-hello{font-size:16px;font-weight:600}
+.c-badge{font-size:9.5px;font-weight:700;color:#E2B85C;background:#1A2410;border:1px solid #3A4A2A;padding:2px 7px;border-radius:5px;margin-left:8px;vertical-align:2px}
+.c-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.c-card{background:#0F1520;border:1px solid #1D2836;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:9px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.c-feat{border-top:1px solid #E2B85C;background:linear-gradient(180deg,#101A26,#0F1520);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 0 24px -14px rgba(226,184,92,.35)}
+.c-row{display:flex;justify-content:space-between;align-items:center}
+.c-name{font-size:12px;font-weight:600;color:#E7ECF3}
+.c-pill{display:flex;align-items:center;gap:6px;font-size:10px;color:#7FD1A0;background:#101C14;border:1px solid #1D2A1D;padding:2px 7px;border-radius:999px;font-weight:600}
+.c-pw{color:#E5B567;background:#1C1A10;border-color:#2A2410}
+.c-pb{color:#8FA8C0;background:#101820;border-color:#1A2632}
+.c-pdot{width:5px;height:5px;border-radius:999px;background:#7FD1A0;box-shadow:0 0 5px rgba(127,209,160,.55)}
+.c-pw .c-pdot{background:#E5B567}.c-pb .c-pdot{background:#8FA8C0}
+.c-stat{display:flex;align-items:baseline;gap:8px}
+.c-num{font-family:"JetBrains Mono",monospace;font-size:19px;font-weight:600;color:#E8C078;font-variant-numeric:tabular-nums}
+.c-lbl{font-size:10px;color:#566170}
+.c-foot{display:flex;justify-content:space-between;border-top:1px solid #1A2330;padding-top:7px}
+.c-meta{font-size:10px;color:#566170;font-family:"JetBrains Mono",monospace}
+.c-tasks{border:1px solid #1D2836;border-radius:10px;background:#0F1520;padding:2px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.c-th{font-size:10px;letter-spacing:.08em;color:#566170;font-weight:600;padding:10px 12px 6px;font-family:"JetBrains Mono",monospace}
+.c-tr{display:flex;align-items:center;gap:10px;padding:7px 12px;border-top:1px solid #161F2C}
+.c-ck{width:13px;height:13px;border:1.5px solid #2A3544;border-radius:4px;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.c-ck.c-done{background:linear-gradient(135deg,#E8C078,#A9762B);border-color:transparent}
+.c-tt{font-size:11.5px;color:#BFC7D2}
+.c-td{margin-left:auto;font-size:10px;color:#566170;font-family:"JetBrains Mono",monospace}
+.c-cmd{display:flex;align-items:center;gap:10px;margin:0 18px 16px;border:1px solid #1D2836;border-radius:9px;background:rgba(15,21,32,.75);backdrop-filter:blur(14px);padding:9px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.c-cmd-mark{font-size:10px;font-weight:700;color:#0A0F16;background:linear-gradient(135deg,#E8C078,#A9762B);padding:3px 7px;border-radius:5px}
+.c-cmd-ph{font-size:11.5px;color:#566170;flex:1}
+.c-cmd-k{font-size:12px;color:#8B98AB;border:1px solid #1D2836;border-radius:5px;padding:1px 7px;font-family:"JetBrains Mono",monospace}
+
+/* ============ D · 晶体极光 Crystal（scoped） ============ */
+.dir-d{font-family:"Instrument Sans",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:radial-gradient(120% 90% at 72% 0%,#2B2013 0%,#191310 46%,#120F0C 100%);color:#F0EAE0;display:flex;flex-direction:column;width:960px;height:600px;overflow:hidden}
+.d-app{display:flex;flex-direction:column;height:100%}
+.d-top{display:flex;align-items:center;gap:24px;padding:16px 28px 14px}
+.d-mark{width:11px;height:11px;border-radius:3px;background:linear-gradient(135deg,#F0CE8E,#A9762B);display:inline-block;margin-right:10px;box-shadow:0 0 12px rgba(240,206,142,.5)}
+.d-logo{font-family:"Fraunces",serif;font-size:17px;font-weight:600;letter-spacing:.01em}
+.d-nav{display:flex;gap:4px;margin-left:4px}
+.d-nv{font-size:12.5px;color:#9A8F7E;padding:5px 12px;border-radius:999px}
+.d-nv.d-on{background:rgba(255,248,235,.07);color:#F0CE8E;font-weight:600;border:1px solid rgba(240,206,142,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.d-avatar{margin-left:auto;width:25px;height:25px;border-radius:999px;background:linear-gradient(135deg,#F0CE8E,#A9762B);color:#141310;font-size:11px;display:grid;place-items:center;font-weight:700;box-shadow:0 0 14px -2px rgba(240,206,142,.5)}
+.d-body{display:flex;flex:1;min-height:0}
+.d-side{width:190px;padding:18px 16px}
+.d-cap{font-size:10.5px;letter-spacing:.12em;color:#7A6F5E;font-weight:600;margin:0 4px 10px}
+.d-item{font-size:12.5px;color:#9A8F7E;padding:7px 10px;border-radius:10px;margin-bottom:2px}
+.d-item.d-on{background:rgba(255,248,235,.07);color:#F0EAE0;font-weight:600;border:1px solid rgba(255,248,235,.1)}
+.d-spacer{flex:1}
+.d-main{flex:1;padding:14px 26px 18px;min-width:0;display:flex;flex-direction:column;gap:14px}
+.d-hello{font-family:"Fraunces",serif;font-size:22px;font-weight:500;letter-spacing:-.01em}
+.d-sub{font-size:12px;color:#9A8F7E;margin-top:-10px}
+.d-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.d-card{background:rgba(255,248,235,.055);border:1px solid rgba(255,248,235,.11);border-radius:18px;padding:17px;display:flex;flex-direction:column;gap:11px;backdrop-filter:blur(20px);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 18px 40px -24px rgba(0,0,0,.7)}
+.d-row{display:flex;justify-content:space-between;align-items:center}
+.d-name{font-size:13px;font-weight:600}
+.d-status{font-size:10.5px;color:#F0CE8E;background:rgba(240,206,142,.12);border:1px solid rgba(240,206,142,.25);padding:3px 9px;border-radius:999px;font-weight:600}
+.d-st2{color:#D8C3A0;background:rgba(216,195,160,.1);border-color:rgba(216,195,160,.22)}
+.d-stat{display:flex;align-items:baseline;gap:10px}
+.d-big{font-family:"IBM Plex Mono",monospace;font-size:24px;font-weight:600;color:#F0CE8E;font-variant-numeric:tabular-nums}
+.d-cap2{font-size:11px;color:#9A8F7E}
+.d-row2{display:flex;justify-content:space-between;border-top:1px solid rgba(255,248,235,.09);padding-top:9px}
+.d-meta{font-size:10.5px;color:#7A6F5E;font-family:"IBM Plex Mono",monospace}
+.d-tasks{border:1px solid rgba(255,248,235,.11);border-radius:18px;background:rgba(255,248,235,.04);padding:3px 18px;backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.d-th{font-family:"Fraunces",serif;font-size:13px;font-weight:600;padding:12px 0 6px}
+.d-tr{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid rgba(255,248,235,.08)}
+.d-check{width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(240,206,142,.4);flex:none}
+.d-check.d-done{background:linear-gradient(135deg,#F0CE8E,#A9762B);border-color:transparent}
+.d-tt{font-size:12px;color:#D8D0C0}
+.d-td{margin-left:auto;font-size:10.5px;color:#7A6F5E;font-family:"IBM Plex Mono",monospace}
+.d-ai{display:flex;align-items:center;gap:12px;margin:0 26px 18px;border:1px solid rgba(255,248,235,.16);border-radius:16px;background:rgba(255,248,235,.07);backdrop-filter:blur(24px);padding:11px 15px;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 30px -12px rgba(240,206,142,.35)}
+.d-ai-mark{font-size:10px;font-weight:700;color:#141310;background:linear-gradient(135deg,#F0CE8E,#A9762B);padding:3px 7px;border-radius:6px}
+.d-ai-ph{font-size:12.5px;color:#9A8F7E;flex:1}
+.d-ai-go{font-size:12px;font-weight:600;color:#F0CE8E}
+</style>
+
+<script>
+  let pending = null;
+  function dials(){
+    return {
+      variance: Number(document.getElementById('variance').value),
+      motion: Number(document.getElementById('motion').value),
+      density: Number(document.getElementById('density').value)
+    };
+  }
+  ['variance','motion','density'].forEach(id => {
+    const input = document.getElementById(id), out = document.getElementById(id + 'Out');
+    input.addEventListener('input', () => { out.value = input.value; out.textContent = input.value; });
+  });
+  const NAMES = {A:'黑金旗舰', B:'通透光感', C:'深空科技', D:'晶体极光'};
+  function selectionText(payload){
+    const v = payload.dials || dials();
+    return payload.label + '；拨盘：视觉冒险度 ' + v.variance + ' / 动效强度 ' + v.motion + ' / 信息密度 ' + v.density + (payload.adjustments ? '；建议：' + payload.adjustments : '');
+  }
+  async function sendSelection(payload){
+    const msg = selectionText(payload);
+    if (location.protocol === 'file:') {
+      if (navigator.clipboard) await navigator.clipboard.writeText(msg).catch(()=>{});
+      return {ok:false, fallback:true};
+    }
+    try {
+      const res = await fetch('/api/select', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      return res.json();
+    } catch(e) { return {ok:false, fallback:true}; }
+  }
+  function openConfirm(i){
+    document.querySelectorAll('.card').forEach((c,idx)=>c.classList.toggle('selected', idx===i));
+    const id = 'ABCD'[i];
+    pending = {id, name: NAMES[id], label:'选 ' + id + '：' + NAMES[id]};
+    const v = dials();
+    document.getElementById('confirmMeta').textContent = pending.label + ' · 视觉冒险度 ' + v.variance + ' / 动效强度 ' + v.motion + ' / 信息密度 ' + v.density;
+    document.getElementById('confirm').classList.add('open');
+    document.getElementById('adjustments').focus();
+  }
+  async function confirmSelection(){
+    if(!pending) return;
+    const msg = pending.label;
+    const bar = document.getElementById('pickbar');
+    const payload = {...pending, dials: dials(), adjustments: document.getElementById('adjustments').value.trim()};
+    const result = await sendSelection(payload);
+    bar.textContent = result.ok ? '已选择 ' + msg + ' — 已回传' : '已选择 ' + msg + ' — 静态降级，请回到对话回复选择';
+    bar.classList.add('show');
+    document.getElementById('confirm').classList.remove('open');
+    if (!result.ok && navigator.clipboard) navigator.clipboard.writeText(msg).catch(()=>{});
+  }
+  document.querySelectorAll('.card').forEach((c,i)=> c.addEventListener('click', ()=>openConfirm(i)));
+  document.addEventListener('keydown', e=>{
+    const i = ['1','2','3','4'].indexOf(e.key);
+    if(i>-1 && !document.getElementById('confirm').classList.contains('open')){ const c=document.querySelectorAll('.card')[i]; if(c) openConfirm(i); }
+  });
+  document.getElementById('cancelPick').onclick = () => document.getElementById('confirm').classList.remove('open');
+  document.getElementById('confirmPick').onclick = confirmSelection;
+</script>
+</body>
+</html>

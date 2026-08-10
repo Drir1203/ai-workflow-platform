@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.db
+*.sqlite3
+
+# Node
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# OS / IDE / stray files
+.DS_Store
+Thumbs.db
+*.stackdump
+.idea/
+.vscode/
+
+# Docker local-only dirs (certs/state generated on server)
+nginx/ssl/
+nginx/www/

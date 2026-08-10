@@ -1,0 +1,211 @@
+import { useState, type FormEvent } from 'react'
+import { NoteCard } from '../components/NoteCard'
+import { StatusBadge } from '../components/status'
+import { TaskItem } from '../components/TaskItem'
+import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
+import { Card } from '../components/ui/card'
+import { Empty } from '../components/ui/empty'
+import { Input, Textarea } from '../components/ui/input'
+import type { Note, Project, Task } from '../types'
+
+export function ProjectPage({
+  project,
+  tasks,
+  notes,
+  onBack,
+  onCreateTask,
+  onToggleTask,
+  onDeleteTask,
+  onCreateNote,
+  onUpdateNote,
+  onDeleteNote,
+  onDeleteProject,
+}: {
+  project?: Project
+  tasks: Task[]
+  notes: Note[]
+  onBack: () => void
+  onCreateTask: (t: { project_id: string; title: string; priority?: string }) => Promise<void>
+  onToggleTask: (task: Task) => Promise<void>
+  onDeleteTask: (id: string) => Promise<void>
+  onCreateNote: (n: { project_id: string; title: string; content?: string }) => Promise<void>
+  onUpdateNote: (id: string, patch: Partial<Note>) => Promise<void>
+  onDeleteNote: (id: string) => Promise<void>
+  onDeleteProject: (id: string) => Promise<void>
+}) {
+  const [showTaskForm, setShowTaskForm] = useState(false)
+  const [taskTitle, setTaskTitle] = useState('')
+  const [priority, setPriority] = useState('medium')
+  const [noteTitle, setNoteTitle] = useState('')
+  const [noteContent, setNoteContent] = useState('')
+
+  if (!project) {
+    return (
+      <div className="mx-auto max-w-7xl p-6">
+        <Card>
+          <Empty
+            title="项目不存在或已被删除"
+            action={
+              <Button variant="secondary" size="sm" onClick={onBack}>
+                返回工作台
+              </Button>
+            }
+          />
+        </Card>
+      </div>
+    )
+  }
+
+  const done = tasks.filter((t) => t.status === 'done').length
+  const projectId = project.id
+  const projectName = project.name
+
+  function submitTask(e: FormEvent) {
+    e.preventDefault()
+    if (!taskTitle.trim()) return
+    void onCreateTask({ project_id: projectId, title: taskTitle.trim(), priority })
+    setTaskTitle('')
+    setPriority('medium')
+  }
+
+  function submitNote(e: FormEvent) {
+    e.preventDefault()
+    if (!noteTitle.trim()) return
+    void onCreateNote({ project_id: projectId, title: noteTitle.trim(), content: noteContent })
+    setNoteTitle('')
+    setNoteContent('')
+  }
+
+  function removeProject() {
+    if (window.confirm(`确定删除项目「${projectName}」？其任务与笔记将一并删除。`)) {
+      void onDeleteProject(projectId)
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 p-6">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-[12.5px] text-ink-3 transition-colors hover:text-gold"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M19 12H5m7-7-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        返回工作台
+      </button>
+
+      <header>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-[20px] font-[650] tracking-tight text-ink">{project.name}</h1>
+          <StatusBadge status={project.status} />
+          <Button variant="ghost" size="sm" className="text-error hover:bg-error/10" onClick={removeProject}>
+            删除项目
+          </Button>
+        </div>
+        {project.description && <p className="mt-1.5 text-[12.5px] text-ink-3">{project.description}</p>}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Badge tone="gold" dot={false}>
+            <span className="font-mono tabular-nums">{tasks.length}</span> 任务
+          </Badge>
+          <Badge tone="success" dot={false}>
+            <span className="font-mono tabular-nums">{done}</span> 完成
+          </Badge>
+          <Badge tone="info" dot={false}>
+            <span className="font-mono tabular-nums">{notes.length}</span> 笔记
+          </Badge>
+        </div>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-7">
+        <section className="lg:col-span-4">
+          <Card className="overflow-hidden">
+            <div className="flex items-center justify-between border-b border-line px-4 py-3">
+              <h2 className="text-[13px] font-semibold text-ink-2">任务</h2>
+              <Button size="sm" variant="secondary" onClick={() => setShowTaskForm((s) => !s)}>
+                {showTaskForm ? '收起' : '+ 添加任务'}
+              </Button>
+            </div>
+            {showTaskForm && (
+              <form onSubmit={submitTask} className="flex gap-2 border-b border-line bg-elev1 p-3">
+                <Input
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  placeholder="任务标题"
+                  className="flex-1"
+                  autoFocus
+                />
+                <select
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                  className="h-9 rounded-lg border border-line-soft bg-elev1 px-2 text-[12px] text-ink-2 focus:border-gold-primary/60 focus:outline-none"
+                >
+                  <option value="high">高</option>
+                  <option value="medium">中</option>
+                  <option value="low">低</option>
+                </select>
+                <Button size="sm" type="submit" disabled={!taskTitle.trim()}>
+                  创建
+                </Button>
+              </form>
+            )}
+            {tasks.length === 0 ? (
+              <Empty
+                title="还没有任务"
+                hint="添加第一个任务，开始推进这个项目。"
+                action={
+                  <Button size="sm" onClick={() => setShowTaskForm(true)}>
+                    添加任务
+                  </Button>
+                }
+              />
+            ) : (
+              <div>
+                {tasks.map((t) => (
+                  <TaskItem
+                    key={t.id}
+                    task={t}
+                    onToggle={() => void onToggleTask(t)}
+                    onDelete={() => void onDeleteTask(t.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </Card>
+        </section>
+
+        <section className="lg:col-span-3">
+          <Card className="space-y-4 p-4">
+            <h2 className="text-[13px] font-semibold text-ink-2">笔记</h2>
+            <form onSubmit={submitNote} className="flex flex-col gap-2">
+              <Input value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder="笔记标题" />
+              <Textarea
+                rows={2}
+                value={noteContent}
+                onChange={(e) => setNoteContent(e.target.value)}
+                placeholder="随手记，支持 AI 相关备忘…"
+              />
+              <Button size="sm" type="submit" disabled={!noteTitle.trim()}>
+                保存笔记
+              </Button>
+            </form>
+            <div className="flex flex-col gap-3 pt-1">
+              {notes.length === 0 ? (
+                <p className="py-6 text-center text-[12px] text-ink-5">还没有笔记</p>
+              ) : (
+                notes.map((n) => (
+                  <NoteCard
+                    key={n.id}
+                    note={n}
+                    onUpdate={onUpdateNote}
+                    onDelete={() => void onDeleteNote(n.id)}
+                  />
+                ))
+              )}
+            </div>
+          </Card>
+        </section>
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ProjectHub AI · 工作台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;650&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23141413'/%3E%3Cpath d='M16 6 26 16 16 26 6 16Z' fill='none' stroke='%23D9A441' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='16' r='2.4' fill='%23E8C078'/%3E%3C/svg%3E" />
+    <style>
+      /* ===== Theme tokens (defined OUTSIDE the Tailwind pipeline so utilities
+             keep var() references and resolve at runtime by data-theme) ===== */
+      :root {
+        color-scheme: dark;
+        --bg: 12 12 11;
+        --bg-elev-1: 16 16 15;
+        --bg-elev-2: 20 20 19;
+        --bg-active: 28 27 24;
+        --border: 35 35 33;
+        --border-strong: 38 38 33;
+        --border-soft: 42 42 36;
+        --ink: 240 237 230;
+        --ink-2: 201 196 184;
+        --ink-3: 139 135 126;
+        --ink-4: 110 108 100;
+        --ink-5: 92 90 82;
+        --gold: 232 192 120;
+        --gold-primary: 217 164 65;
+        --gold-deep: 169 118 43;
+        --gold-tint-bg: 42 34 19;
+        --panel-bg: 12 12 11;
+        --success: 127 209 160;
+        --warning: 229 181 103;
+        --error: 229 115 115;
+        --info: 143 168 192;
+        --glass-bg: rgba(255, 248, 232, .035);
+        --glass-panel: linear-gradient(180deg, rgba(26, 25, 22, .92), rgba(18, 18, 16, .95));
+      }
+      html[data-theme='aurora'] {
+        color-scheme: light;
+        --bg: 247 243 234;
+        --bg-elev-1: 253 251 246;
+        --bg-elev-2: 255 255 255;
+        --bg-active: 239 231 214;
+        --border: 228 220 201;
+        --border-strong: 217 207 184;
+        --border-soft: 220 210 188;
+        --ink: 43 38 31;
+        --ink-2: 87 80 63;
+        --ink-3: 122 113 96;
+        --ink-4: 156 147 129;
+        --ink-5: 178 169 146;
+        --gold: 176 137 31;
+        --gold-primary: 160 122 27;
+        --gold-deep: 122 90 20;
+        --gold-tint-bg: 242 229 196;
+        --panel-bg: 255 255 255;
+        --success: 46 158 98;
+        --warning: 174 122 28;
+        --error: 197 69 63;
+        --info: 76 126 166;
+        --glass-bg: rgba(255, 255, 255, .5);
+        --glass-panel: linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(247, 243, 234, .97));
+      }
+      html[data-theme='deepspace'] {
+        color-scheme: dark;
+        --bg: 8 11 16;
+        --bg-elev-1: 13 17 23;
+        --bg-elev-2: 17 22 30;
+        --bg-active: 24 32 43;
+        --border: 31 40 51;
+        --border-strong: 35 45 58;
+        --border-soft: 39 50 63;
+        --ink: 232 237 244;
+        --ink-2: 185 194 206;
+        --ink-3: 126 138 153;
+        --ink-4: 92 104 119;
+        --ink-5: 74 85 99;
+        --gold: 232 192 120;
+        --gold-primary: 217 164 65;
+        --gold-deep: 169 118 43;
+        --gold-tint-bg: 40 39 26;
+        --panel-bg: 8 11 16;
+        --success: 111 206 147;
+        --warning: 224 180 92;
+        --error: 224 122 114;
+        --info: 127 166 201;
+        --glass-bg: rgba(232, 237, 244, .03);
+        --glass-panel: linear-gradient(180deg, rgba(17, 22, 30, .94), rgba(13, 17, 23, .96));
+      }
+      html[data-theme='crystal'] {
+        color-scheme: dark;
+        --bg: 14 14 16;
+        --bg-elev-1: 20 20 23;
+        --bg-elev-2: 25 25 29;
+        --bg-active: 34 34 40;
+        --border: 42 42 48;
+        --border-strong: 48 48 56;
+        --border-soft: 56 56 64;
+        --ink: 244 244 246;
+        --ink-2: 207 207 214;
+        --ink-3: 150 150 159;
+        --ink-4: 110 110 119;
+        --ink-5: 87 87 95;
+        --gold: 238 211 147;
+        --gold-primary: 223 175 79;
+        --gold-deep: 184 135 46;
+        --gold-tint-bg: 43 38 25;
+        --panel-bg: 14 14 16;
+        --success: 127 209 160;
+        --warning: 229 181 103;
+        --error: 229 115 115;
+        --info: 143 168 192;
+        --glass-bg: rgba(244, 244, 246, .04);
+        --glass-panel: linear-gradient(180deg, rgba(25, 25, 29, .94), rgba(20, 20, 23, .96));
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
