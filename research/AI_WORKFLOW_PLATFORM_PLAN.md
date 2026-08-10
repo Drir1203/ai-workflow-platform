@@ -199,12 +199,12 @@
 ## 9. 分阶段实施计划
 
 ### Phase 1 · MVP（约 3-4 周）— 跑通闭环
-- [ ] 项目骨架：Docker Compose（自研后端 + PG + pgvector + Redis + Dify CE）
+- [x] 项目骨架：Docker Compose（自研后端 + PG + Redis；Dify CE 以 `compose.dify.yml` + profile 门控接入，PG 先用 postgres:16 非 pgvector——无向量列，日后换镜像一行改动）
 - [ ] 认证（先邮箱/密码单用户）+ 项目/任务/笔记 CRUD
 - [ ] AI 适配层 + Dify headless 对接（对话 + 知识库 RAG）
 - [ ] Web 端（React + Vite + shadcn）
 - [ ] 小程序端（Taro，含订阅消息）
-- [ ] 部署上线：阿里云 ECS + GitHub Actions
+- [ ] 部署上线：阿里云 ECS + GitHub Actions（**代码与 CI/CD 文件已就绪**：ci.yml/deploy.yml/cicd-deploy.sh/DEPLOYMENT.md；剩余为服务器侧手动 TODO——装 Docker、建 .env、compose up、certbot HTTPS，见 DEPLOYMENT.md「首次部署清单」）
 
 ### Phase 2（约 3-4 周）— 智能体与工作流
 - [ ] Agent 执行：预置 4 个 Agent + 工具调用

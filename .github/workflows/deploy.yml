@@ -1,0 +1,22 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: 部署到生产服务器
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: SSH 执行服务器部署脚本
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROJECTHUB_HOST }}
+          username: root
+          key: ${{ secrets.PROJECTHUB_SSH_KEY }}
+          script: |
+            set -e
+            bash /opt/projecthub-ai/cicd-deploy.sh

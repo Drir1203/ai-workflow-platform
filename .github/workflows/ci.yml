@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: 后端测试
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: projecthub
+          POSTGRES_USER: projecthub
+          POSTGRES_PASSWORD: projecthub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U projecthub -d projecthub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: 安装依赖
+        working-directory: backend
+        run: pip install ".[dev]"
+
+      - name: 单元测试（内存 SQLite）
+        working-directory: backend
+        run: pytest -q
+
+      - name: 集成测试（真实 PostgreSQL，走 alembic 迁移）
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://projecthub:projecthub@localhost:5432/projecthub
+        run: pytest -q
+
+  frontend:
+    name: 前端构建
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 安装依赖
+        working-directory: frontend
+        run: npm ci
+
+      - name: 构建
+        working-directory: frontend
+        run: npm run build

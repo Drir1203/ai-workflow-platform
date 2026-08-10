@@ -1,23 +1,13 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api import ai, auth, health, notes, projects, tasks, wechat
 from .config import settings
-from .db import engine
-from .models import Base
 
+# 数据库 Schema 由 Alembic 迁移管理（容器入口/部署脚本执行 `alembic upgrade head`），
+# 不再在启动时 create_all，避免与迁移漂移。
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    # MVP：启动时建表（幂等）。生产环境后续替换为 Alembic 迁移。
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-
-
-app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

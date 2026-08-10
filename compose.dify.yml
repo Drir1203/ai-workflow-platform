@@ -1,0 +1,66 @@
+# ProjectHub AI - Dify CE 可选栈（profile 门控，默认不启动）
+# ⚠️ 本文件定义 Dify 接入所需的「核心契约」服务（api/worker/web），
+#    完整 Dify CE 部署（sandbox、ssrf_proxy、plugin_daemon 及 Dify 自带的
+#    postgres/redis/weaviate）请以官方 Dify CE docker-compose 为准，合并进来后
+#    给每个服务补 `profiles: ["dify"]` 并把网络改为 projecthub-net。
+#
+# 用法（与核心栈一起）：
+#   docker compose -f docker-compose.yml -f compose.dify.yml --profile dify up -d
+# 后端经 DIFY_API_URL=http://api:5001/v1 直连 Dify headless（见 .env.example）。
+#
+# 说明：profiles 是每个服务单独声明的；不传 --profile dify 时这些服务完全不启动。
+
+services:
+  api:
+    image: langgenius/dify-api:1.0.0
+    restart: unless-stopped
+    profiles: ["dify"]
+    environment:
+      MODE: api
+      SECRET_KEY: ${DIFY_SECRET_KEY:-please-change-me}
+      DB_HOST: ${DIFY_DB_HOST:-dify-postgres}
+      DB_PORT: 5432
+      DB_USERNAME: ${DIFY_DB_USERNAME:-dify}
+      DB_PASSWORD: ${DIFY_DB_PASSWORD:-dify-change-me}
+      DB_DATABASE: ${DIFY_DB_DATABASE:-dify}
+      REDIS_HOST: ${DIFY_REDIS_HOST:-dify-redis}
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${DIFY_REDIS_PASSWORD:-}
+      CONSOLE_API_URL: http://127.0.0.1:5001
+      SERVICE_API_URL: http://127.0.0.1:5001
+    ports:
+      - "127.0.0.1:5001:5001"
+    depends_on:
+      - worker
+    networks:
+      - projecthub-net
+    mem_limit: 1g
+
+  worker:
+    image: langgenius/dify-api:1.0.0
+    restart: unless-stopped
+    profiles: ["dify"]
+    environment:
+      MODE: worker
+      SECRET_KEY: ${DIFY_SECRET_KEY:-please-change-me}
+      DB_HOST: ${DIFY_DB_HOST:-dify-postgres}
+      DB_PORT: 5432
+      DB_USERNAME: ${DIFY_DB_USERNAME:-dify}
+      DB_PASSWORD: ${DIFY_DB_PASSWORD:-dify-change-me}
+      DB_DATABASE: ${DIFY_DB_DATABASE:-dify}
+      REDIS_HOST: ${DIFY_REDIS_HOST:-dify-redis}
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${DIFY_REDIS_PASSWORD:-}
+    networks:
+      - projecthub-net
+    mem_limit: 1g
+
+  web:
+    image: langgenius/dify-web:1.0.0
+    restart: unless-stopped
+    profiles: ["dify"]
+    ports:
+      - "127.0.0.1:3001:3000"
+    networks:
+      - projecthub-net
+    mem_limit: 256m
