@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     dify_api_url: str = "http://localhost:5001/v1"
     dify_api_key: str = ""
+    # AI 引擎选择：dify（Dify CE headless）| openai_compatible（DeepSeek/通义等）
+    ai_provider: str = "dify"
+    openai_compatible_base_url: str = "https://api.deepseek.com"
+    openai_compatible_api_key: str = ""
+    openai_compatible_model: str = "deepseek-chat"
     # 微信小程序订阅消息（R16）
     wechat_appid: str = ""
     wechat_secret: str = ""
