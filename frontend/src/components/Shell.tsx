@@ -9,6 +9,8 @@ import { Skeleton } from './ui/skeleton'
 import { TopBar } from './TopBar'
 import { DashboardPage } from '../pages/DashboardPage'
 import { ProjectPage } from '../pages/ProjectPage'
+import { AgentsPage } from '../pages/AgentsPage'
+import { WorkflowsPage } from '../pages/WorkflowsPage'
 
 export function Shell({ mode, onLogout }: { mode: Mode; onLogout?: () => void }) {
   const layer: DataLayer = mode === 'demo' ? demoApi : api
@@ -103,11 +105,16 @@ export function Shell({ mode, onLogout }: { mode: Mode; onLogout?: () => void })
               onOpenProject={(id) => setView({ name: 'project', id })}
               onCreateProject={handlers.createProject}
             />
+          ) : view.name === 'agents' ? (
+            <AgentsPage layer={layer} projects={projects} />
+          ) : view.name === 'workflows' ? (
+            <WorkflowsPage layer={layer} projects={projects} />
           ) : (
             <ProjectPage
               project={projects.find((p) => p.id === view.id)}
               tasks={tasks.filter((t) => t.project_id === view.id)}
               notes={notes.filter((n) => n.project_id === view.id)}
+              layer={layer}
               onBack={() => setView({ name: 'dashboard' })}
               onCreateTask={handlers.createTask}
               onToggleTask={handlers.toggleTask}

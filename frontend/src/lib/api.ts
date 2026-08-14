@@ -1,4 +1,18 @@
-import type { AuthResponse, Note, Project, Task, User } from '../types'
+import type {
+  AgentInfo,
+  AgentRun,
+  AuthResponse,
+  KnowledgeDocument,
+  KnowledgeResponse,
+  Note,
+  Paginated,
+  Project,
+  ScanResult,
+  Task,
+  User,
+  Workflow,
+  WorkflowRun,
+} from '../types'
 import { BASE } from './mode'
 
 const TOKEN_KEY = 'ph_token'
@@ -63,6 +77,33 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return res.json() as Promise<T>
 }
 
+/** multipart 文件上传：浏览器自动带 boundary，不设 Content-Type。 */
+async function upload<T>(path: string, file: File): Promise<T> {
+  const form = new FormData()
+  form.append('file', file)
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  const res = await fetch(`${BASE}${path}`, { method: 'POST', headers, body: form })
+  if (res.status === 401) {
+    clearSession()
+    window.location.reload()
+    throw new ApiError(401, '登录已过期')
+  }
+  if (!res.ok) {
+    let detail = res.statusText
+    try {
+      const j = await res.json()
+      detail = j.detail ?? JSON.stringify(j)
+    } catch {
+      /* keep default */
+    }
+    throw new ApiError(res.status, String(detail))
+  }
+  if (res.status === 204) return undefined as T
+  return res.json() as Promise<T>
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<AuthResponse>('POST', '/api/auth/login', { email, password }),
@@ -87,4 +128,47 @@ export const api = {
     request<Note>('PATCH', `/api/notes/${id}`, patch),
   deleteNote: (id: string) => request<void>('DELETE', `/api/notes/${id}`),
   chat: (query: string) => request<{ answer: string }>('POST', '/api/ai/chat', { query }),
+  // ---------- Agent ----------
+  listAgents: () => request<AgentInfo[]>('GET', '/api/agents'),
+  runAgent: (agentKey: string, body: { params?: Record<string, unknown>; project_id?: string }) =>
+    request<{ run_id: string; status: string }>('POST', `/api/agents/${agentKey}/run`, body),
+  listAgentRuns: (opts?: { agent_key?: string; page?: number; page_size?: number }) => {
+    const q = new URLSearchParams()
+    if (opts?.agent_key) q.set('agent_key', opts.agent_key)
+    q.set('page', String(opts?.page ?? 1))
+    q.set('page_size', String(opts?.page_size ?? 20))
+    return request<Paginated<AgentRun>>('GET', `/api/agents/runs?${q}`)
+  },
+  getAgentRun: (runId: string) => request<AgentRun>('GET', `/api/agents/runs/${runId}`),
+  // ---------- 工作流 ----------
+  listWorkflows: () => request<Workflow[]>('GET', '/api/workflows'),
+  createWorkflow: (w: {
+    name: string
+    description?: string
+    steps: { label: string; agent_key: string; params: Record<string, unknown> }[]
+    schedule?: { cron?: string; interval_minutes?: number } | null
+  }) => request<Workflow>('POST', '/api/workflows', w),
+  updateWorkflow: (id: string, patch: Partial<Workflow>) =>
+    request<Workflow>('PATCH', `/api/workflows/${id}`, patch),
+  deleteWorkflow: (id: string) => request<void>('DELETE', `/api/workflows/${id}`),
+  runWorkflow: (id: string) =>
+    request<{ run_id: string; status: string }>('POST', `/api/workflows/${id}/run`),
+  listWorkflowRuns: (opts?: { page?: number; page_size?: number }) => {
+    const q = new URLSearchParams()
+    q.set('page', String(opts?.page ?? 1))
+    q.set('page_size', String(opts?.page_size ?? 20))
+    return request<Paginated<WorkflowRun>>('GET', `/api/workflows/runs?${q}`)
+  },
+  getWorkflowRun: (runId: string) => request<WorkflowRun>('GET', `/api/workflows/runs/${runId}`),
+  // ---------- 知识库 RAG ----------
+  listDocuments: (projectId: string) =>
+    request<KnowledgeDocument[]>('GET', `/api/projects/${projectId}/documents`),
+  uploadDocument: (projectId: string, file: File) =>
+    upload<KnowledgeDocument>(`/api/projects/${projectId}/documents`, file),
+  deleteDocument: (projectId: string, documentId: string) =>
+    request<void>('DELETE', `/api/projects/${projectId}/documents/${documentId}`),
+  scanDocuments: (projectId: string) =>
+    request<ScanResult>('POST', `/api/projects/${projectId}/documents/scan`),
+  queryKnowledge: (projectId: string, query: string) =>
+    request<KnowledgeResponse>('POST', `/api/projects/${projectId}/knowledge`, { query }),
 }

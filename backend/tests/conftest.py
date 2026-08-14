@@ -12,7 +12,10 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.db import get_db
+from app.agents.runner import agent_run_manager
+from app.db import SessionLocal, get_db
+from app.workflows.executor import workflow_run_manager
+from app.workflows.scheduler import workflow_scheduler
 from app.main import app
 from app.models import Base
 
@@ -38,7 +41,14 @@ async def client():
             for table in reversed(Base.metadata.sorted_tables):
                 await conn.execute(table.delete())
     else:
-        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        # 临时文件 SQLite：后台任务与请求会话各用独立连接，靠 SQLite 文件锁串行化
+        # （:memory: 单连接并发会破坏事务；共享缓存模式有 "statements in progress" 缺陷）
+        import tempfile
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        tmp.close()
+        db_url = f"sqlite+aiosqlite:///{tmp.name}"
+        engine = create_async_engine(db_url)
         factory = async_sessionmaker(engine, expire_on_commit=False)
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -49,12 +59,25 @@ async def client():
 
     app.dependency_overrides[get_db] = override_get_db
 
+    # 后台 Agent/Workflow 任务自开会话，指向测试库
+    original_session_factory = agent_run_manager.session_factory
+    agent_run_manager.session_factory = factory
+    workflow_run_manager.session_factory = factory
+    workflow_scheduler.session_factory = factory
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
 
+    await agent_run_manager.shutdown()
+    await workflow_run_manager.shutdown()
+    agent_run_manager.session_factory = original_session_factory
+    workflow_run_manager.session_factory = SessionLocal
+    workflow_scheduler.session_factory = SessionLocal
     app.dependency_overrides.clear()
     await engine.dispose()
+    if not TEST_DATABASE_URL:
+        os.unlink(tmp.name)
 
 
 @pytest_asyncio.fixture

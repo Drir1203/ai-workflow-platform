@@ -16,6 +16,16 @@ class Settings(BaseSettings):
     openai_compatible_base_url: str = "https://api.deepseek.com"
     openai_compatible_api_key: str = ""
     openai_compatible_model: str = "deepseek-chat"
+    # 定时调度时区（单 worker 进程内 APScheduler）
+    scheduler_timezone: str = "Asia/Shanghai"
+    # Agent fetch_url 工具
+    agent_fetch_timeout: float = 15
+    agent_fetch_max_chars: int = 8000
+    # 知识库 RAG（R8/R9/R10）
+    rag_top_k: int = 5
+    rag_chunk_chars: int = 600
+    rag_scan_extensions: list[str] = ["md", "txt", "markdown"]
+    rag_max_upload_mb: int = 10
     # 微信小程序订阅消息（R16）
     wechat_appid: str = ""
     wechat_secret: str = ""

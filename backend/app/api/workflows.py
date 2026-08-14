@@ -1,0 +1,187 @@
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..agents.registry import AGENT_REGISTRY, ensure_registered
+from ..db import get_db
+from ..models.user import User
+from ..models.workflow import Workflow
+from ..models.workflow_run import WorkflowRun
+from ..schemas.agent import Paginated
+from ..schemas.workflow import (
+    WorkflowCreate,
+    WorkflowRead,
+    WorkflowRunCreated,
+    WorkflowRunRead,
+    WorkflowUpdate,
+)
+from ..workflows.executor import workflow_run_manager
+from ..workflows.scheduler import workflow_scheduler
+from .deps import get_current_user
+
+router = APIRouter(prefix="/api/workflows", tags=["workflows"])
+
+
+def _normalize_schedule(schedule) -> dict | None:
+    """只保留显式设置的调度字段（cron 或 interval_minutes）。"""
+    if schedule is None:
+        return None
+    return {k: v for k, v in schedule.model_dump().items() if v is not None}
+
+
+def _validate_steps(steps: list[dict]) -> None:
+    ensure_registered()
+    for step in steps:
+        if AGENT_REGISTRY.get(step.get("agent_key")) is None:
+            raise HTTPException(
+                status_code=422, detail=f"unknown agent: {step.get('agent_key')}"
+            )
+
+
+@router.get("", response_model=list[WorkflowRead])
+async def list_workflows(
+    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+) -> list[Workflow]:
+    result = await db.execute(
+        select(Workflow)
+        .where(Workflow.user_id == user.id)
+        .order_by(Workflow.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+@router.post("", response_model=WorkflowRead, status_code=status.HTTP_201_CREATED)
+async def create_workflow(
+    payload: WorkflowCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Workflow:
+    _validate_steps([s.model_dump() for s in payload.steps])
+    wf = Workflow(
+        user_id=user.id,
+        tenant_id=user.tenant_id,
+        name=payload.name,
+        description=payload.description,
+        steps=[s.model_dump() for s in payload.steps],
+        schedule=_normalize_schedule(payload.schedule),
+    )
+    db.add(wf)
+    await db.commit()
+    await db.refresh(wf)
+    workflow_scheduler.reschedule(wf)
+    return wf
+
+
+@router.get("/runs", response_model=Paginated[WorkflowRunRead])
+async def list_workflow_runs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Paginated[WorkflowRunRead]:
+    where = [WorkflowRun.user_id == user.id]
+    total = (
+        await db.execute(select(func.count()).select_from(WorkflowRun).where(*where))
+    ).scalar_one()
+    result = await db.execute(
+        select(WorkflowRun)
+        .where(*where)
+        .order_by(WorkflowRun.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    return Paginated(
+        items=list(result.scalars().all()), total=total, page=page, page_size=page_size
+    )
+
+
+@router.get("/runs/{run_id}", response_model=WorkflowRunRead)
+async def get_workflow_run(
+    run_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> WorkflowRun:
+    run = await db.get(WorkflowRun, run_id)
+    if run is None or run.user_id != user.id:
+        raise HTTPException(status_code=404, detail="run not found")
+    return run
+
+
+@router.get("/{workflow_id}", response_model=WorkflowRead)
+async def get_workflow(
+    workflow_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Workflow:
+    wf = await db.get(Workflow, workflow_id)
+    if wf is None or wf.user_id != user.id:
+        raise HTTPException(status_code=404, detail="workflow not found")
+    return wf
+
+
+@router.patch("/{workflow_id}", response_model=WorkflowRead)
+async def update_workflow(
+    workflow_id: str,
+    payload: WorkflowUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Workflow:
+    wf = await db.get(Workflow, workflow_id)
+    if wf is None or wf.user_id != user.id:
+        raise HTTPException(status_code=404, detail="workflow not found")
+
+    data = payload.model_dump(exclude_unset=True)
+    if "steps" in data:
+        _validate_steps(data["steps"])
+    if "schedule" in data:
+        sched = data["schedule"]
+        data["schedule"] = (
+            {k: v for k, v in sched.items() if v is not None} if sched else None
+        )
+    for field, value in data.items():
+        setattr(wf, field, value)
+    await db.commit()
+    await db.refresh(wf)
+    workflow_scheduler.reschedule(wf)
+    return wf
+
+
+@router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_workflow(
+    workflow_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> None:
+    wf = await db.get(Workflow, workflow_id)
+    if wf is None or wf.user_id != user.id:
+        raise HTTPException(status_code=404, detail="workflow not found")
+    workflow_scheduler.remove(wf.id)
+    await db.delete(wf)
+    await db.commit()
+
+
+@router.post(
+    "/{workflow_id}/run",
+    response_model=WorkflowRunCreated,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def run_workflow(
+    workflow_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> WorkflowRunCreated:
+    wf = await db.get(Workflow, workflow_id)
+    if wf is None or wf.user_id != user.id:
+        raise HTTPException(status_code=404, detail="workflow not found")
+    run = WorkflowRun(
+        tenant_id=wf.tenant_id,
+        workflow_id=wf.id,
+        user_id=user.id,
+        status="pending",
+        triggered_by="manual",
+    )
+    db.add(run)
+    await db.commit()
+    await db.refresh(run)
+    workflow_run_manager.submit(run.id)
+    return WorkflowRunCreated(run_id=run.id, status=run.status)

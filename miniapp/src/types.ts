@@ -49,3 +49,35 @@ export interface ReminderResult {
   sent: number
   skipped: number
 }
+
+// ---------- 智能体（Phase 2） ----------
+
+export interface AgentParam {
+  name: string
+  label: string
+  type: string
+  required: boolean
+  default: unknown
+  options: { value: string; label: string }[]
+  placeholder: string
+}
+
+export interface AgentInfo {
+  key: string
+  name: string
+  description: string
+  param_schema: AgentParam[]
+}
+
+export interface AgentRun {
+  id: string
+  agent_key: string
+  project_id: string | null
+  status: string
+  params: Record<string, unknown>
+  output: string | null
+  error: string | null
+  started_at: string | null
+  finished_at: string | null
+  created_at: string
+}

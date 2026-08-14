@@ -1,4 +1,16 @@
-import type { Note, Project, Task } from '../types'
+import type {
+  AgentInfo,
+  AgentRun,
+  KnowledgeDocument,
+  KnowledgeResponse,
+  Note,
+  Paginated,
+  Project,
+  ScanResult,
+  Task,
+  Workflow,
+  WorkflowRun,
+} from '../types'
 
 const iso = (daysAgo: number, h = 10) => {
   const d = new Date()
@@ -24,7 +36,7 @@ let projects: Project[] = [
     id: 'p-3', name: 'ProjectHub AI 平台', status: 'planning',
     description: '工作流平台 · 黑金旗舰主题 · Web/小程序/App',
     color: '#A9762B', repo_url: 'https://github.com/Drir1203/ai-workflow-platform',
-    deploy_url: 'https://projecthub.example.app', local_path: null,
+    deploy_url: 'https://projecthub.example.app', local_path: 'D:\\Project\\ai-workflow-platform',
     created_at: iso(2), updated_at: iso(0, 8),
   },
   {
@@ -54,9 +66,114 @@ let notes: Note[] = [
   { id: 'n-5', project_id: 'p-4', title: '本周灵感', content: '把日常工作里的 AI 内容整理也接进知识库 RAG，减少重复查询。', created_at: iso(1), updated_at: iso(1) },
 ]
 
+// ---------- 知识库 RAG（演示数据） ----------
+
+let documents: KnowledgeDocument[] = [
+  {
+    id: 'd-1', project_id: 'p-1', name: 'CLAUDE.md', source: 'scan', content_type: 'md',
+    status: 'ready', error: null, source_path: 'CLAUDE.md', created_at: iso(20),
+  },
+  {
+    id: 'd-2', project_id: 'p-1', name: '巡检流程.md', source: 'upload', content_type: 'md',
+    status: 'ready', error: null, source_path: null, created_at: iso(3),
+  },
+  {
+    id: 'd-3', project_id: 'p-3', name: 'AI_WORKFLOW_PLATFORM_PLAN.md', source: 'scan', content_type: 'md',
+    status: 'ready', error: null, source_path: 'research/AI_WORKFLOW_PLATFORM_PLAN.md', created_at: iso(2),
+  },
+  {
+    id: 'd-4', project_id: 'p-3', name: 'DESIGN.md', source: 'scan', content_type: 'md',
+    status: 'ready', error: null, source_path: 'DESIGN.md', created_at: iso(1),
+  },
+]
+
 const delay = (ms = 180) => new Promise((r) => setTimeout(r, ms))
 let nid = 100
 let tid = 100
+let rid = 100
+let wid = 100
+let did = 100
+
+// ---------- Agent / 工作流演示数据 ----------
+
+const agents: AgentInfo[] = [
+  {
+    key: 'weekly_report', name: '周报生成',
+    description: '汇总本周项目进展、完成事项与风险，生成结构化周报',
+    param_schema: [
+      { name: 'project_id', label: '项目', type: 'project_id', required: false, default: null, options: [], placeholder: '全部项目' },
+      { name: 'period', label: '周期', type: 'select', required: false, default: 'this_week', options: [
+        { value: 'this_week', label: '本周' }, { value: 'last_week', label: '上周' }, { value: 'this_month', label: '本月' },
+      ], placeholder: '' },
+    ],
+  },
+  {
+    key: 'inspection_report', name: '巡检报告',
+    description: '检查指定项目任务完成率、高优与逾期风险，给出改进建议',
+    param_schema: [
+      { name: 'project_id', label: '项目', type: 'project_id', required: true, default: null, options: [], placeholder: '选择项目' },
+    ],
+  },
+  {
+    key: 'interview_questions', name: '押题生成',
+    description: '根据主题生成面试/考试押题，含考察点与参考答案要点',
+    param_schema: [
+      { name: 'topic', label: '主题', type: 'text', required: true, default: null, options: [], placeholder: '如：FastAPI 异步编程' },
+      { name: 'count', label: '题目数量', type: 'number', required: false, default: 10, options: [], placeholder: '' },
+      { name: 'difficulty', label: '难度', type: 'select', required: false, default: 'medium', options: [
+        { value: 'easy', label: '简单' }, { value: 'medium', label: '中等' }, { value: 'hard', label: '困难' },
+      ], placeholder: '' },
+    ],
+  },
+  {
+    key: 'competitor_research', name: '竞品调研',
+    description: '抓取指定网页并生成竞品分析报告（演示模式不抓取）',
+    param_schema: [
+      { name: 'topic', label: '主题', type: 'text', required: true, default: null, options: [], placeholder: '如：AI 笔记类竞品' },
+      { name: 'urls', label: '网页链接（每行一个）', type: 'textarea', required: false, default: null, options: [], placeholder: 'https://…' },
+      { name: 'max_sources', label: '参考来源数', type: 'number', required: false, default: 3, options: [], placeholder: '' },
+    ],
+  },
+]
+
+let agentRuns: AgentRun[] = [
+  {
+    id: 'ar-1', agent_key: 'weekly_report', project_id: null, status: 'succeeded',
+    params: { period: 'this_week' }, output: '## 本周周报\n\n### 完成事项\n- 后端 Phase 1 全部 35 测试通过\n- Web 前端黑金主题 Demo 上线\n\n### 进行中\n- i面试 小程序 v3 迁移\n\n### 下周计划\n- Phase 2 智能体 + 工作流',
+    error: null, started_at: iso(1), finished_at: iso(0), created_at: iso(1),
+  },
+]
+
+let workflows: Workflow[] = [
+  {
+    id: 'wf-1', user_id: 'demo-user', name: '每日巡检', description: '每天 9 点自动生成巡检报告',
+    steps: [{ label: '巡检', agent_key: 'inspection_report', params: { project_id: 'p-1' } }],
+    schedule: { cron: '0 9 * * *', interval_minutes: null }, enabled: true, created_at: iso(3), updated_at: iso(1),
+  },
+]
+
+let workflowRuns: WorkflowRun[] = [
+  {
+    id: 'wr-1', workflow_id: 'wf-1', status: 'succeeded',
+    results: [{ label: '巡检', agent_key: 'inspection_report', output: '## 巡检报告\n\n任务完成率 82%，无逾期高风险项。' }],
+    error: null, triggered_by: 'manual', started_at: iso(1), finished_at: iso(0), created_at: iso(1),
+  },
+]
+
+function stubAgentOutput(agentKey: string, params: Record<string, unknown>): string {
+  switch (agentKey) {
+    case 'weekly_report':
+      return `## 本周周报\n\n### 进展\n${(params.period ?? 'this_week') === 'last_week' ? '上周重点推进巡检闭环与小程序迁移。' : 'Phase 2 智能体 + 工作流进入实现阶段。'}\n\n### 下周计划\n- 完成前端 Agents / Workflows 页面\n- 小程序接入智能体`
+    case 'inspection_report':
+      return `## 巡检报告\n\n- 任务完成率：82%\n- 高优任务：2 项进行中\n- 逾期风险：1 项临近截止\n\n### 建议\n优先处理高优任务，同步进度给相关人。`
+    case 'interview_questions':
+      return `## ${params.topic ?? '主题'} 押题（${params.count ?? 10} 题）\n\n1. **核心概念**：考察点 + 参考答案要点\n2. **进阶应用**：考察点 + 参考答案要点\n3. **实战场景**：考察点 + 参考答案要点`
+    case 'competitor_research':
+      return `## 竞品调研：${params.topic ?? '主题'}\n\n> 演示模式未抓取网页，以下为基于主题的通用分析。\n\n- 定位与目标用户\n- 核心功能对比\n- 差异化机会`
+    default:
+      return '演示输出'
+  }
+}
 
 function demoReply(q: string): string {
   const s = q.toLowerCase()
@@ -147,5 +264,136 @@ export const demoApi = {
   async chat(query: string): Promise<{ answer: string }> {
     await delay(420)
     return { answer: demoReply(query) }
+  },
+  // ---------- Agent（演示数据） ----------
+  async listAgents(): Promise<AgentInfo[]> {
+    await delay()
+    return [...agents]
+  },
+  async runAgent(agentKey: string, body: { params?: Record<string, unknown>; project_id?: string }): Promise<{ run_id: string; status: string }> {
+    await delay()
+    const run: AgentRun = {
+      id: `ar-${++rid}`, agent_key: agentKey, project_id: body.project_id ?? null,
+      status: 'succeeded', params: body.params ?? {}, output: stubAgentOutput(agentKey, body.params ?? {}),
+      error: null, started_at: new Date().toISOString(), finished_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    }
+    agentRuns = [run, ...agentRuns]
+    return { run_id: run.id, status: run.status }
+  },
+  async listAgentRuns(opts?: { agent_key?: string; page?: number; page_size?: number }): Promise<Paginated<AgentRun>> {
+    await delay()
+    const key = opts?.agent_key
+    const list = key ? agentRuns.filter((r) => r.agent_key === key) : agentRuns
+    const page = opts?.page ?? 1
+    const pageSize = opts?.page_size ?? 20
+    return { items: list.slice((page - 1) * pageSize, page * pageSize), total: list.length, page, page_size: pageSize }
+  },
+  async getAgentRun(runId: string): Promise<AgentRun> {
+    await delay()
+    return agentRuns.find((r) => r.id === runId)!
+  },
+  // ---------- 工作流（演示数据） ----------
+  async listWorkflows(): Promise<Workflow[]> {
+    await delay()
+    return [...workflows]
+  },
+  async createWorkflow(w: {
+    name: string
+    description?: string
+    steps: { label: string; agent_key: string; params: Record<string, unknown> }[]
+    schedule?: { cron?: string; interval_minutes?: number } | null
+  }): Promise<Workflow> {
+    await delay()
+    const now = new Date().toISOString()
+    const wf: Workflow = {
+      id: `wf-${++wid}`, user_id: 'demo-user', name: w.name, description: w.description ?? null,
+      steps: w.steps,
+      schedule: (w.schedule && (w.schedule.cron || w.schedule.interval_minutes)
+        ? { cron: w.schedule.cron ?? null, interval_minutes: w.schedule.interval_minutes ?? null }
+        : null),
+      enabled: true, created_at: now, updated_at: now,
+    }
+    workflows = [wf, ...workflows]
+    return wf
+  },
+  async updateWorkflow(id: string, patch: Partial<Workflow>): Promise<Workflow> {
+    await delay()
+    workflows = workflows.map((w) => (w.id === id ? { ...w, ...patch, updated_at: new Date().toISOString() } : w))
+    return workflows.find((w) => w.id === id)!
+  },
+  async deleteWorkflow(id: string): Promise<void> {
+    await delay()
+    workflows = workflows.filter((w) => w.id !== id)
+  },
+  async runWorkflow(id: string): Promise<{ run_id: string; status: string }> {
+    await delay()
+    const wf = workflows.find((w) => w.id === id)!
+    const run: WorkflowRun = {
+      id: `wr-${++wid}`, workflow_id: id, status: 'succeeded',
+      results: wf.steps.map((s, i) => ({ label: s.label, agent_key: s.agent_key, output: stubAgentOutput(s.agent_key, s.params) })),
+      error: null, triggered_by: 'manual',
+      started_at: new Date().toISOString(), finished_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    }
+    workflowRuns = [run, ...workflowRuns]
+    return { run_id: run.id, status: run.status }
+  },
+  async listWorkflowRuns(opts?: { page?: number; page_size?: number }): Promise<Paginated<WorkflowRun>> {
+    await delay()
+    const page = opts?.page ?? 1
+    const pageSize = opts?.page_size ?? 20
+    return { items: workflowRuns.slice((page - 1) * pageSize, page * pageSize), total: workflowRuns.length, page, page_size: pageSize }
+  },
+  async getWorkflowRun(runId: string): Promise<WorkflowRun> {
+    await delay()
+    return workflowRuns.find((r) => r.id === runId)!
+  },
+  // ---------- 知识库 RAG（演示数据） ----------
+  async listDocuments(projectId: string): Promise<KnowledgeDocument[]> {
+    await delay()
+    return documents.filter((d) => d.project_id === projectId)
+  },
+  async uploadDocument(projectId: string, file: File): Promise<KnowledgeDocument> {
+    await delay()
+    const ext = file.name.toLowerCase().split('.').pop() ?? 'md'
+    const now = new Date().toISOString()
+    const doc: KnowledgeDocument = {
+      id: `d-${++did}`, project_id: projectId, name: file.name,
+      source: 'upload', content_type: ext, status: 'ready', error: null,
+      source_path: null, created_at: now,
+    }
+    documents = [doc, ...documents]
+    return doc
+  },
+  async deleteDocument(projectId: string, documentId: string): Promise<void> {
+    await delay()
+    documents = documents.filter((d) => !(d.project_id === projectId && d.id === documentId))
+  },
+  async scanDocuments(projectId: string): Promise<ScanResult> {
+    await delay()
+    const hasScanned = documents.some((d) => d.project_id === projectId && d.source === 'scan')
+    if (hasScanned) return { imported: 0, skipped: ['CLAUDE.md', 'README.md'] }
+    const now = new Date().toISOString()
+    const newDocs: KnowledgeDocument[] = [
+      { id: `d-${++did}`, project_id: projectId, name: 'CLAUDE.md', source: 'scan', content_type: 'md', status: 'ready', error: null, source_path: 'CLAUDE.md', created_at: now },
+      { id: `d-${++did}`, project_id: projectId, name: 'README.md', source: 'scan', content_type: 'md', status: 'ready', error: null, source_path: 'README.md', created_at: now },
+    ]
+    documents = [...newDocs, ...documents]
+    return { imported: 2, skipped: [] }
+  },
+  async queryKnowledge(projectId: string, query: string): Promise<KnowledgeResponse> {
+    await delay(520)
+    const list = documents.filter((d) => d.project_id === projectId)
+    if (list.length === 0) return { answer: '知识库中未找到相关信息。', sources: [] }
+    const projName = projects.find((p) => p.id === projectId)?.name ?? projectId
+    return {
+      answer: `根据「${projName}」项目知识库检索到相关内容：\n\n${query}\n\n（演示模式：基于已入库文档的关键词检索。生产环境由 AI 引擎生成回答并附引用来源。）`,
+      sources: list.slice(0, 2).map((d, i) => ({
+        document_id: d.id, document_name: d.name, seq: i,
+        content: '…示例引用片段：文档内与查询相关的段落，最多展示前 300 字符。',
+        matched: query.trim().split(/\s+/).slice(0, 3),
+      })),
+    }
   },
 }

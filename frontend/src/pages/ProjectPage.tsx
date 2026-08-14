@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react'
+import { cn } from '../lib/cn'
+import type { DataLayer } from '../lib/view'
 import { NoteCard } from '../components/NoteCard'
 import { StatusBadge } from '../components/status'
 import { TaskItem } from '../components/TaskItem'
@@ -8,11 +10,13 @@ import { Card } from '../components/ui/card'
 import { Empty } from '../components/ui/empty'
 import { Input, Textarea } from '../components/ui/input'
 import type { Note, Project, Task } from '../types'
+import { KnowledgeTab } from './KnowledgeTab'
 
 export function ProjectPage({
   project,
   tasks,
   notes,
+  layer,
   onBack,
   onCreateTask,
   onToggleTask,
@@ -25,6 +29,7 @@ export function ProjectPage({
   project?: Project
   tasks: Task[]
   notes: Note[]
+  layer: DataLayer
   onBack: () => void
   onCreateTask: (t: { project_id: string; title: string; priority?: string }) => Promise<void>
   onToggleTask: (task: Task) => Promise<void>
@@ -35,6 +40,7 @@ export function ProjectPage({
   onDeleteProject: (id: string) => Promise<void>
 }) {
   const [showTaskForm, setShowTaskForm] = useState(false)
+  const [tab, setTab] = useState<'overview' | 'knowledge'>('overview')
   const [taskTitle, setTaskTitle] = useState('')
   const [priority, setPriority] = useState('medium')
   const [noteTitle, setNoteTitle] = useState('')
@@ -117,8 +123,43 @@ export function ProjectPage({
         </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-7">
-        <section className="lg:col-span-4">
+      <div className="flex items-center gap-1 border-b border-line" role="tablist" aria-label="项目内容">
+        <button
+          role="tab"
+          aria-selected={tab === 'overview'}
+          aria-controls="project-overview"
+          id="tab-overview"
+          onClick={() => setTab('overview')}
+          className={cn(
+            'relative -mb-px border-b-2 px-3 pb-2 pt-1 text-[13px] transition-colors',
+            tab === 'overview' ? 'border-gold text-gold' : 'border-transparent text-ink-3 hover:text-ink',
+          )}
+        >
+          概览
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'knowledge'}
+          aria-controls="project-knowledge"
+          id="tab-knowledge"
+          onClick={() => setTab('knowledge')}
+          className={cn(
+            'relative -mb-px border-b-2 px-3 pb-2 pt-1 text-[13px] transition-colors',
+            tab === 'knowledge' ? 'border-gold text-gold' : 'border-transparent text-ink-3 hover:text-ink',
+          )}
+        >
+          知识库
+        </button>
+      </div>
+
+      {tab === 'overview' ? (
+        <div
+          id="project-overview"
+          role="tabpanel"
+          aria-labelledby="tab-overview"
+          className="grid gap-6 lg:grid-cols-7"
+        >
+          <section className="lg:col-span-4">
           <Card className="overflow-hidden">
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
               <h2 className="text-[13px] font-semibold text-ink-2">任务</h2>
@@ -204,8 +245,13 @@ export function ProjectPage({
               )}
             </div>
           </Card>
-        </section>
-      </div>
+          </section>
+        </div>
+      ) : (
+        <div id="project-knowledge" role="tabpanel" aria-labelledby="tab-knowledge">
+          <KnowledgeTab key={project.id} layer={layer} project={project} />
+        </div>
+      )}
     </div>
   )
 }

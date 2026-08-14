@@ -91,7 +91,10 @@ export default function Dashboard() {
           </Text>
         </View>
         <View style={{ display: 'flex', gap: '16rpx' }}>
-          <Text onClick={() => setShowNew(true)} style={{ fontSize: '24rpx', color: 'var(--gold)', padding: '12rpx 24rpx', border: '1rpx solid rgba(217,164,65,0.4)', borderRadius: '14rpx' }}>
+          <Text onClick={() => Taro.navigateTo({ url: '/pages/agents/index' })} style={{ fontSize: '24rpx', color: 'var(--gold)', padding: '12rpx 24rpx', border: '1rpx solid rgba(217,164,65,0.4)', borderRadius: '14rpx' }}>
+            智能体
+          </Text>
+          <Text onClick={() => setShowNew(true)} style={{ fontSize: '24rpx', color: 'var(--ink-3)', padding: '12rpx 24rpx', border: '1rpx solid var(--border-soft)', borderRadius: '14rpx' }}>
             + 新建
           </Text>
           <Text onClick={logout} style={{ fontSize: '24rpx', color: 'var(--ink-3)', padding: '12rpx' }}>

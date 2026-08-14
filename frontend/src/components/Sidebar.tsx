@@ -41,6 +41,26 @@ function DashboardIcon({ className }: { className?: string }) {
   )
 }
 
+function AgentIcon({ className }: { className?: string }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <rect x="9" y="9" width="6" height="6" rx="1.5" />
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.5 2.5M16.5 16.5 19 19M19 5l-2.5 2.5M7.5 16.5 5 19" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function WorkflowIcon({ className }: { className?: string }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <circle cx="5" cy="6" r="2" />
+      <circle cx="5" cy="18" r="2" />
+      <circle cx="19" cy="12" r="2" />
+      <path d="M5 8v8M7 6h7a2 2 0 0 1 2 2v2M17 14v-2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function SettingsIcon({ className }: { className?: string }) {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
@@ -64,6 +84,12 @@ export function Sidebar({
       <nav className="flex flex-col gap-1">
         <SideItem active={view.name === 'dashboard'} onClick={() => onSelect({ name: 'dashboard' })}>
           <DashboardIcon /> 工作台
+        </SideItem>
+        <SideItem active={view.name === 'agents'} onClick={() => onSelect({ name: 'agents' })}>
+          <AgentIcon /> 智能体
+        </SideItem>
+        <SideItem active={view.name === 'workflows'} onClick={() => onSelect({ name: 'workflows' })}>
+          <WorkflowIcon /> 工作流
         </SideItem>
       </nav>
       <div className="flex flex-col gap-1">

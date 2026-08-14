@@ -1,5 +1,7 @@
 import Taro from '@tarojs/taro'
 import type {
+  AgentInfo,
+  AgentRun,
   AuthResponse,
   Note,
   Project,
@@ -99,6 +101,12 @@ export const api = {
   deleteNote: (id: string) => request<void>('DELETE', `/api/notes/${id}`),
 
   chat: (query: string) => request<{ answer: string }>('POST', '/api/ai/chat', { query }),
+
+  // 智能体
+  listAgents: () => request<AgentInfo[]>('GET', '/api/agents'),
+  runAgent: (agentKey: string, body: { params?: Record<string, unknown>; project_id?: string }) =>
+    request<{ run_id: string; status: string }>('POST', `/api/agents/${agentKey}/run`, body),
+  getAgentRun: (runId: string) => request<AgentRun>('GET', `/api/agents/runs/${runId}`),
 
   wechatSubscribe: (code: string, task_id: string, template_id?: string) =>
     request<{ task_id: string; status: string }>('POST', '/api/wechat/subscribe', {
