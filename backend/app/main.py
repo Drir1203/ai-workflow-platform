@@ -4,7 +4,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agents.runner import agent_run_manager
-from .api import agents, ai, auth, health, knowledge, notes, projects, tasks, wechat, workflows
+from .api import (
+    agents,
+    ai,
+    auth,
+    health,
+    knowledge,
+    notes,
+    param_templates,
+    projects,
+    tasks,
+    wechat,
+    workflows,
+)
 from .config import settings
 from .workflows.executor import workflow_run_manager
 from .workflows.scheduler import workflow_scheduler
@@ -39,6 +51,7 @@ app.include_router(tasks.router)
 app.include_router(notes.router)
 app.include_router(ai.router)
 app.include_router(agents.router)
+app.include_router(param_templates.router)
 app.include_router(knowledge.router)
 app.include_router(workflows.router)
 app.include_router(wechat.router)

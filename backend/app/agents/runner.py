@@ -8,7 +8,8 @@ from app.db import SessionLocal
 from app.models import AgentRun, User
 
 from .base import AgentContext
-from .registry import AGENT_REGISTRY, ensure_registered
+from .custom import resolve_agent
+from .registry import ensure_registered
 
 
 class RunManager:
@@ -36,7 +37,8 @@ class RunManager:
                 if user is None:
                     raise ValueError(f"user {run.user_id} not found")
                 ensure_registered()
-                agent = AGENT_REGISTRY.get(run.agent_key)
+                # 内置 + DB 自定义 Agent 统一解析（自定义 Agent 单跑也能执行）
+                agent = await resolve_agent(db, run.agent_key)
                 if agent is None:
                     raise ValueError(f"unknown agent: {run.agent_key}")
                 ctx = AgentContext(

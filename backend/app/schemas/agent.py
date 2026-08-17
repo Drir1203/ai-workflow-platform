@@ -30,6 +30,39 @@ class AgentInfo(BaseModel):
     name: str
     description: str
     param_schema: list[AgentParamInfo]
+    source: str = "builtin"  # builtin（内置 Python 类）| custom（DB 持久化的自定义 Agent）
+    prompt: str | None = None  # 仅自定义 Agent 返回，供前端编辑回填（内置 Agent 无提示词）
+
+
+class CustomAgentCreate(BaseModel):
+    """用户自定义 Agent 创建：prompt 支持 {{param}} 占位符。"""
+
+    name: str = Field(min_length=1, max_length=120)
+    description: str | None = None
+    prompt: str = Field(min_length=1, max_length=50000)
+    param_schema: list[AgentParamInfo] = Field(default_factory=list, max_length=50)
+
+
+class CustomAgentUpdate(BaseModel):
+    """自定义 Agent 更新：全字段可选，None 表示不修改。"""
+
+    name: str | None = Field(None, max_length=120)
+    description: str | None = None
+    prompt: str | None = Field(None, max_length=50000)
+    param_schema: list[AgentParamInfo] | None = Field(None, max_length=50)
+
+
+class CustomAgentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    key: str
+    name: str
+    description: str | None
+    prompt: str
+    param_schema: list[AgentParamInfo]
+    created_at: datetime
+    updated_at: datetime
 
 
 class AgentRunRequest(BaseModel):

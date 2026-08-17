@@ -1,11 +1,14 @@
 import type {
   AgentInfo,
+  AgentParam,
   AgentRun,
   AuthResponse,
+  CustomAgentRead,
   KnowledgeDocument,
   KnowledgeResponse,
   Note,
   Paginated,
+  ParamTemplate,
   Project,
   ScanResult,
   Task,
@@ -140,6 +143,20 @@ export const api = {
     return request<Paginated<AgentRun>>('GET', `/api/agents/runs?${q}`)
   },
   getAgentRun: (runId: string) => request<AgentRun>('GET', `/api/agents/runs/${runId}`),
+  // ---------- 自定义 Agent（DB 持久化） ----------
+  createAgent: (a: { name: string; description?: string | null; prompt: string; param_schema: AgentParam[] }) =>
+    request<CustomAgentRead>('POST', '/api/agents', a),
+  updateAgent: (key: string, patch: Partial<{ name: string; description?: string | null; prompt: string; param_schema: AgentParam[] }>) =>
+    request<CustomAgentRead>('PATCH', `/api/agents/${key}`, patch),
+  deleteAgent: (key: string) => request<void>('DELETE', `/api/agents/${key}`),
+  // ---------- 参数预置模板 ----------
+  listParamTemplates: (agentKey?: string) =>
+    request<ParamTemplate[]>('GET', `/api/param-templates${agentKey ? `?agent_key=${agentKey}` : ''}`),
+  createParamTemplate: (t: { name: string; agent_key: string; params: Record<string, unknown> }) =>
+    request<ParamTemplate>('POST', '/api/param-templates', t),
+  updateParamTemplate: (id: string, patch: Partial<{ name: string; params: Record<string, unknown> }>) =>
+    request<ParamTemplate>('PATCH', `/api/param-templates/${id}`, patch),
+  deleteParamTemplate: (id: string) => request<void>('DELETE', `/api/param-templates/${id}`),
   // ---------- 工作流 ----------
   listWorkflows: () => request<Workflow[]>('GET', '/api/workflows'),
   createWorkflow: (w: {

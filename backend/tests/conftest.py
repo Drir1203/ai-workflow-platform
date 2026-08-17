@@ -16,8 +16,13 @@ from app.agents.runner import agent_run_manager
 from app.db import SessionLocal, get_db
 from app.workflows.executor import workflow_run_manager
 from app.workflows.scheduler import workflow_scheduler
+from app.config import settings
 from app.main import app
 from app.models import Base
+
+# 测试套件默认关闭限流，避免并发/回归用例被 429 干扰。
+# tests/test_ratelimit.py 内用 monkeypatch 单独打开并 reset_limiter() 隔离。
+settings.ratelimit_enabled = False
 
 
 @pytest.fixture(scope="session", autouse=True)

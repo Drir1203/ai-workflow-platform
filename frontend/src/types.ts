@@ -61,11 +61,38 @@ export interface AgentParam {
   placeholder: string
 }
 
+export type AgentSource = 'builtin' | 'custom'
+
 export interface AgentInfo {
   key: string
   name: string
   description: string
   param_schema: AgentParam[]
+  source: AgentSource
+  prompt?: string | null // 仅自定义 Agent 返回，供编辑回填
+}
+
+// 参数预置模板：一组参数值存成命名模板，运行 Agent / 编辑工作流步骤时一键复用
+export interface ParamTemplate {
+  id: string
+  user_id: string
+  name: string
+  agent_key: string
+  params: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+// 自定义 Agent 定义（DB 持久化）：prompt 支持 {{param}} 占位符
+export interface CustomAgentRead {
+  id: string
+  key: string
+  name: string
+  description: string | null
+  prompt: string
+  param_schema: AgentParam[]
+  created_at: string
+  updated_at: string
 }
 
 export type RunStatus = 'pending' | 'running' | 'succeeded' | 'failed'

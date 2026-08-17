@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     rag_chunk_chars: int = 600
     rag_scan_extensions: list[str] = ["md", "txt", "markdown"]
     rag_max_upload_mb: int = 10
+    # 限流（进程内滑动窗口，按来源 IP + scope，单 worker 部署有效）
+    ratelimit_enabled: bool = True
+    ratelimit_auth_per_min: int = 10  # 登录/注册，防爆破
+    ratelimit_llm_per_min: int = 20  # AI 对话/知识问答，控成本
+    ratelimit_run_per_min: int = 10  # Agent/工作流触发，防误触
+    ratelimit_upload_per_min: int = 30  # 文档上传
     # 微信小程序订阅消息（R16）
     wechat_appid: str = ""
     wechat_secret: str = ""

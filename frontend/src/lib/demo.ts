@@ -1,10 +1,15 @@
 import type {
   AgentInfo,
+  AgentParam,
   AgentRun,
+  AgentSource,
+  AuthResponse,
+  CustomAgentRead,
   KnowledgeDocument,
   KnowledgeResponse,
   Note,
   Paginated,
+  ParamTemplate,
   Project,
   ScanResult,
   Task,
@@ -93,6 +98,8 @@ let tid = 100
 let rid = 100
 let wid = 100
 let did = 100
+let cid = 100
+let pti = 100
 
 // ---------- Agent / 工作流演示数据 ----------
 
@@ -106,6 +113,7 @@ const agents: AgentInfo[] = [
         { value: 'this_week', label: '本周' }, { value: 'last_week', label: '上周' }, { value: 'this_month', label: '本月' },
       ], placeholder: '' },
     ],
+    source: 'builtin',
   },
   {
     key: 'inspection_report', name: '巡检报告',
@@ -113,6 +121,7 @@ const agents: AgentInfo[] = [
     param_schema: [
       { name: 'project_id', label: '项目', type: 'project_id', required: true, default: null, options: [], placeholder: '选择项目' },
     ],
+    source: 'builtin',
   },
   {
     key: 'interview_questions', name: '押题生成',
@@ -124,6 +133,7 @@ const agents: AgentInfo[] = [
         { value: 'easy', label: '简单' }, { value: 'medium', label: '中等' }, { value: 'hard', label: '困难' },
       ], placeholder: '' },
     ],
+    source: 'builtin',
   },
   {
     key: 'competitor_research', name: '竞品调研',
@@ -133,8 +143,16 @@ const agents: AgentInfo[] = [
       { name: 'urls', label: '网页链接（每行一个）', type: 'textarea', required: false, default: null, options: [], placeholder: 'https://…' },
       { name: 'max_sources', label: '参考来源数', type: 'number', required: false, default: 3, options: [], placeholder: '' },
     ],
+    source: 'builtin',
   },
 ]
+
+// 用户自定义 Agent（DB 持久化，演示用内存数组）：listAgents 合并内置 + 自定义。
+// 本地用 CustomAgentRead 结构存（description 允许 null），listAgents 时再转 AgentInfo。
+let customAgents: (CustomAgentRead & { source: AgentSource })[] = []
+
+// 参数预置模板（演示用内存数组）：按命名复用一组参数值
+let paramTemplates: ParamTemplate[] = []
 
 let agentRuns: AgentRun[] = [
   {
@@ -171,6 +189,11 @@ function stubAgentOutput(agentKey: string, params: Record<string, unknown>): str
     case 'competitor_research':
       return `## 竞品调研：${params.topic ?? '主题'}\n\n> 演示模式未抓取网页，以下为基于主题的通用分析。\n\n- 定位与目标用户\n- 核心功能对比\n- 差异化机会`
     default:
+      // 自定义 Agent 演示输出：回显参数，保证 demo 运行有结果
+      if (agentKey.startsWith('custom-')) {
+        const lines = Object.entries(params).map(([k, v]) => `- ${k}: ${JSON.stringify(v)}`)
+        return `## 自定义 Agent 输出（${agentKey}）\n\n${lines.join('\n') || '_（无参数）_'}`
+      }
       return '演示输出'
   }
 }
@@ -190,6 +213,23 @@ function demoReply(q: string): string {
 }
 
 export const demoApi = {
+  // ---------- 认证（演示模式直接放行；补全 api ⇄ demoApi 镜像，保证 DataLayer 不变量成立） ----------
+  login: async (email: string, _password: string): Promise<AuthResponse> => {
+    await delay()
+    return {
+      access_token: 'demo-token',
+      token_type: 'bearer',
+      user: { id: 'demo-user', email, name: email.split('@')[0] || '演示用户', created_at: new Date().toISOString() },
+    }
+  },
+  register: async (email: string, _password: string, name: string): Promise<AuthResponse> => {
+    await delay()
+    return {
+      access_token: 'demo-token',
+      token_type: 'bearer',
+      user: { id: 'demo-user', email, name, created_at: new Date().toISOString() },
+    }
+  },
   async listProjects(): Promise<Project[]> {
     await delay()
     return [...projects]
@@ -268,7 +308,17 @@ export const demoApi = {
   // ---------- Agent（演示数据） ----------
   async listAgents(): Promise<AgentInfo[]> {
     await delay()
-    return [...agents]
+    return [
+      ...agents,
+      ...customAgents.map((a) => ({
+        key: a.key,
+        name: a.name,
+        description: a.description ?? '',
+        param_schema: a.param_schema,
+        source: a.source,
+        prompt: a.prompt,
+      })),
+    ]
   },
   async runAgent(agentKey: string, body: { params?: Record<string, unknown>; project_id?: string }): Promise<{ run_id: string; status: string }> {
     await delay()
@@ -292,6 +342,56 @@ export const demoApi = {
   async getAgentRun(runId: string): Promise<AgentRun> {
     await delay()
     return agentRuns.find((r) => r.id === runId)!
+  },
+  // ---------- 自定义 Agent（DB 持久化，演示用内存） ----------
+  async createAgent(a: { name: string; description?: string | null; prompt: string; param_schema: AgentParam[] }): Promise<CustomAgentRead> {
+    await delay()
+    const now = new Date().toISOString()
+    const agent: CustomAgentRead = {
+      id: `ca-${++cid}`, key: `custom-${cid}`, name: a.name,
+      description: a.description ?? null, prompt: a.prompt, param_schema: a.param_schema,
+      created_at: now, updated_at: now,
+    }
+    // 本地存 CustomAgentRead 结构 + source 标记，listAgents 时再转 AgentInfo
+    customAgents = [...customAgents, { ...agent, source: 'custom' }]
+    return agent
+  },
+  async updateAgent(key: string, patch: Partial<{ name: string; description?: string | null; prompt: string; param_schema: AgentParam[] }>): Promise<CustomAgentRead> {
+    await delay()
+    customAgents = customAgents.map((a) => (a.key === key ? { ...a, ...patch, updated_at: new Date().toISOString() } : a))
+    return customAgents.find((a) => a.key === key)!
+  },
+  async deleteAgent(key: string): Promise<void> {
+    await delay()
+    customAgents = customAgents.filter((a) => a.key !== key)
+    // 级联清理：删掉绑定该 Agent 的预置模板与历史运行，避免残留死引用
+    paramTemplates = paramTemplates.filter((t) => t.agent_key !== key)
+    agentRuns = agentRuns.filter((r) => r.agent_key !== key)
+  },
+  // ---------- 参数预置模板（演示数据） ----------
+  async listParamTemplates(agentKey?: string): Promise<ParamTemplate[]> {
+    await delay()
+    const list = agentKey ? paramTemplates.filter((t) => t.agent_key === agentKey) : paramTemplates
+    return [...list]
+  },
+  async createParamTemplate(t: { name: string; agent_key: string; params: Record<string, unknown> }): Promise<ParamTemplate> {
+    await delay()
+    const now = new Date().toISOString()
+    const tpl: ParamTemplate = {
+      id: `pt-${++pti}`, user_id: 'demo-user', name: t.name,
+      agent_key: t.agent_key, params: t.params, created_at: now, updated_at: now,
+    }
+    paramTemplates = [tpl, ...paramTemplates]
+    return tpl
+  },
+  async updateParamTemplate(id: string, patch: Partial<{ name: string; params: Record<string, unknown> }>): Promise<ParamTemplate> {
+    await delay()
+    paramTemplates = paramTemplates.map((t) => (t.id === id ? { ...t, ...patch, updated_at: new Date().toISOString() } : t))
+    return paramTemplates.find((t) => t.id === id)!
+  },
+  async deleteParamTemplate(id: string): Promise<void> {
+    await delay()
+    paramTemplates = paramTemplates.filter((t) => t.id !== id)
   },
   // ---------- 工作流（演示数据） ----------
   async listWorkflows(): Promise<Workflow[]> {

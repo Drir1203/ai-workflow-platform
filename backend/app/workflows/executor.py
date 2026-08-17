@@ -9,7 +9,8 @@ from app.db import SessionLocal
 from app.models import User, Workflow, WorkflowRun
 
 from ..agents.base import AgentContext
-from ..agents.registry import AGENT_REGISTRY, ensure_registered
+from ..agents.custom import resolve_agent
+from ..agents.registry import ensure_registered
 
 
 def interpolate(value: Any, results: list[dict]) -> Any:
@@ -64,7 +65,8 @@ class WorkflowRunManager:
                 results: list[dict] = []
                 for step in workflow.steps or []:
                     agent_key = step.get("agent_key")
-                    agent = AGENT_REGISTRY.get(agent_key)
+                    # 内置 + DB 自定义 Agent 统一解析（自定义步骤在定时调度里也能执行）
+                    agent = await resolve_agent(db, agent_key)
                     if agent is None:
                         raise ValueError(f"unknown agent: {agent_key}")
                     params = interpolate(step.get("params") or {}, results)

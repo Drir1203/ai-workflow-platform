@@ -6,7 +6,7 @@ import { Dialog } from '../components/ui/dialog'
 import { Empty } from '../components/ui/empty'
 import { Input, Textarea } from '../components/ui/input'
 import type { DataLayer } from '../lib/view'
-import type { AgentInfo, Project, RunStatus, Workflow, WorkflowRun } from '../types'
+import type { AgentInfo, ParamTemplate, Project, RunStatus, Workflow, WorkflowRun } from '../types'
 
 function statusTone(status: RunStatus) {
   return status === 'succeeded' ? 'success' : status === 'failed' ? 'error' : 'info'
@@ -30,19 +30,22 @@ interface StepDraft {
   label: string
   agent_key: string
   paramsJson: string
+  tplId: string // 编辑态：当前选中的预置模板（不提交给后端）
 }
 
 export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects: Project[] }) {
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [agents, setAgents] = useState<AgentInfo[]>([])
   const [runs, setRuns] = useState<WorkflowRun[]>([])
+  const [templates, setTemplates] = useState<ParamTemplate[]>([])
+  const [tplName, setTplName] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const [createOpen, setCreateOpen] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [steps, setSteps] = useState<StepDraft[]>([{ label: '', agent_key: '', paramsJson: '' }])
+  const [steps, setSteps] = useState<StepDraft[]>([{ label: '', agent_key: '', paramsJson: '', tplId: '' }])
   const [cron, setCron] = useState('')
   const [intervalMinutes, setIntervalMinutes] = useState('')
   const [enabled, setEnabled] = useState(true)
@@ -53,14 +56,16 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
 
   const refresh = useCallback(async () => {
     try {
-      const [w, a, r] = await Promise.all([
+      const [w, a, r, t] = await Promise.all([
         layer.listWorkflows(),
         layer.listAgents(),
         layer.listWorkflowRuns({ page_size: 12 }),
+        layer.listParamTemplates(),
       ])
       setWorkflows(w)
       setAgents(a)
       setRuns(r.items)
+      setTemplates(t)
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '加载失败')
@@ -76,8 +81,54 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
   const setStep = (i: number, patch: Partial<StepDraft>) =>
     setSteps((s) => s.map((step, idx) => (idx === i ? { ...step, ...patch } : step)))
 
-  const addStep = () => setSteps((s) => [...s, { label: '', agent_key: '', paramsJson: '' }])
+  // 打开弹窗时重置草稿，避免上次取消/成功后残留旧输入（关闭不清空，只是不再显示）
+  const openCreate = () => {
+    setName('')
+    setDescription('')
+    setSteps([{ label: '', agent_key: '', paramsJson: '', tplId: '' }])
+    setCron('')
+    setIntervalMinutes('')
+    setEnabled(true)
+    setTplName('')
+    setCreateOpen(true)
+  }
+
+  const addStep = () => setSteps((s) => [...s, { label: '', agent_key: '', paramsJson: '', tplId: '' }])
   const removeStep = (i: number) => setSteps((s) => (s.length === 1 ? s : s.filter((_, idx) => idx !== i)))
+
+  // 选中预置模板 → 把模板参数 JSON 填进 paramsJson（可按需再改）
+  const applyStepTemplate = (i: number, id: string) => {
+    setStep(i, { tplId: id })
+    const tpl = templates.find((t) => t.id === id)
+    if (!tpl) return
+    setStep(i, { paramsJson: JSON.stringify(tpl.params ?? {}, null, 2) })
+  }
+
+  // 把当前步骤的参数保存为命名模板，供后续复用
+  async function saveStepTemplate(i: number) {
+    const s = steps[i]
+    if (!s?.agent_key || !tplName.trim() || busy) return
+    let params: Record<string, unknown> = {}
+    if (s.paramsJson.trim()) {
+      try {
+        params = JSON.parse(s.paramsJson)
+      } catch {
+        // 参数不是合法 JSON 时明确报错，避免静默存成空模板
+        setError(`步骤 ${i + 1} 的参数 JSON 格式错误`)
+        return
+      }
+    }
+    setBusy(true)
+    try {
+      const created = await layer.createParamTemplate({ name: tplName.trim(), agent_key: s.agent_key, params })
+      setTemplates((prev) => [created, ...prev])
+      setTplName('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '保存模板失败')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function submitCreate() {
     if (!name.trim() || steps.some((s) => !s.agent_key) || busy) return
@@ -89,7 +140,8 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
           try {
             params = JSON.parse(s.paramsJson)
           } catch {
-            params = {}
+            // 参数 JSON 非法：抛错中止创建（由外层 catch 显示到错误条）
+            throw new Error(`步骤「${s.label.trim() || s.agent_key}」的参数 JSON 格式错误`)
           }
         }
         return { label: s.label.trim() || s.agent_key, agent_key: s.agent_key, params }
@@ -108,10 +160,11 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
       setCreateOpen(false)
       setName('')
       setDescription('')
-      setSteps([{ label: '', agent_key: '', paramsJson: '' }])
+      setSteps([{ label: '', agent_key: '', paramsJson: '', tplId: '' }])
       setCron('')
       setIntervalMinutes('')
       setEnabled(true)
+      setTplName('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '创建失败')
     } finally {
@@ -172,7 +225,7 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
           <h1 className="text-[20px] font-[650] tracking-tight text-ink">工作流</h1>
           <p className="mt-1 text-[12.5px] text-ink-3">多步 Agent 编排 · 上一步输出注入下一步 · 定时触发</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button onClick={openCreate}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
             <path d="M12 5v14M5 12h14" strokeLinecap="round" />
           </svg>
@@ -193,7 +246,7 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
               title="还没有工作流"
               hint="把多个智能体编排成一条流水线，支持手动与定时触发。"
               action={
-                <Button size="sm" onClick={() => setCreateOpen(true)}>
+                <Button size="sm" onClick={openCreate}>
                   新建工作流
                 </Button>
               }
@@ -320,7 +373,7 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
                 <select
                   className="h-9 w-full rounded-lg border border-line-soft bg-elev1 px-3 text-[13px] text-ink focus:border-gold-primary/60 focus:outline-none focus:ring-2 focus:ring-gold-primary/25"
                   value={s.agent_key}
-                  onChange={(e) => setStep(i, { agent_key: e.target.value })}
+                  onChange={(e) => setStep(i, { agent_key: e.target.value, tplId: '' })}
                 >
                   <option value="">选择智能体…</option>
                   {agents.map((a) => (
@@ -329,6 +382,39 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
                     </option>
                   ))}
                 </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    className="h-8 flex-1 rounded-lg border border-line-soft bg-elev1 px-2 font-mono text-[11.5px] text-ink focus:outline-none disabled:opacity-50"
+                    value={s.tplId}
+                    onChange={(e) => applyStepTemplate(i, e.target.value)}
+                    disabled={!s.agent_key}
+                  >
+                    <option value="">模板回填…</option>
+                    {templates
+                      .filter((t) => t.agent_key === s.agent_key)
+                      .map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                  </select>
+                  <Input
+                    value={tplName}
+                    onChange={(e) => setTplName(e.target.value)}
+                    placeholder="存为模板名"
+                    className="h-8 w-32 font-mono text-[11.5px]"
+                    disabled={!s.agent_key}
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => saveStepTemplate(i)}
+                    disabled={!s.agent_key || !tplName.trim()}
+                    loading={busy}
+                  >
+                    存为模板
+                  </Button>
+                </div>
                 <Textarea
                   rows={2}
                   value={s.paramsJson}

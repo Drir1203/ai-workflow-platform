@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..ai import get_ai_engine
 from ..config import settings
+from ..core.ratelimit import rate_limit
 from ..db import get_db
 from ..models.document import Document
 from ..models.document_chunk import DocumentChunk
@@ -29,6 +30,11 @@ from .deps import get_current_user
 router = APIRouter(prefix="/api/projects/{project_id}", tags=["knowledge"])
 
 _ALLOWED_TYPES = {"md", "txt", "pdf", "docx"}
+
+# 限流依赖：按「来源 IP + scope」滑动窗口计数，超限抛 429。
+# 端点的 `_rl: None = Depends(...)` 参数不传值，只负责把依赖挂进请求链路，见 core/ratelimit.py
+_llm_limit = rate_limit(settings.ratelimit_llm_per_min, 60, scope="llm")
+_upload_limit = rate_limit(settings.ratelimit_upload_per_min, 60, scope="upload")
 
 
 async def _get_project_or_404(db: AsyncSession, project_id: str) -> Project:
@@ -89,6 +95,7 @@ async def _ingest_text(
 async def upload_document(
     project_id: str,
     file: UploadFile = File(...),
+    _rl: None = Depends(_upload_limit),
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
 ) -> Document:
@@ -218,6 +225,7 @@ async def delete_document(
 async def query_knowledge(
     project_id: str,
     payload: KnowledgeQuery,
+    _rl: None = Depends(_llm_limit),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> KnowledgeResponse:

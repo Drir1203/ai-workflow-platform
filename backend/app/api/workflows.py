@@ -3,7 +3,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..agents.registry import AGENT_REGISTRY, ensure_registered
+from ..config import settings
+from ..core.ratelimit import rate_limit
 from ..db import get_db
+from ..models.custom_agent import CustomAgent
 from ..models.user import User
 from ..models.workflow import Workflow
 from ..models.workflow_run import WorkflowRun
@@ -21,6 +24,10 @@ from .deps import get_current_user
 
 router = APIRouter(prefix="/api/workflows", tags=["workflows"])
 
+# 限流依赖：按「来源 IP + workflow_run」滑动窗口计数，超限抛 429（工作流触发防误触）。
+# 端点的 `_rl: None = Depends(...)` 参数不传值，只负责把依赖挂进请求链路，见 core/ratelimit.py
+_run_limit = rate_limit(settings.ratelimit_run_per_min, 60, scope="workflow_run")
+
 
 def _normalize_schedule(schedule) -> dict | None:
     """只保留显式设置的调度字段（cron 或 interval_minutes）。"""
@@ -29,13 +36,21 @@ def _normalize_schedule(schedule) -> dict | None:
     return {k: v for k, v in schedule.model_dump().items() if v is not None}
 
 
-def _validate_steps(steps: list[dict]) -> None:
+async def _validate_steps(db: AsyncSession, user: User, steps: list[dict]) -> None:
+    """校验步骤引用的 Agent：内置注册表优先，其次当前租户的自定义 Agent。"""
     ensure_registered()
     for step in steps:
-        if AGENT_REGISTRY.get(step.get("agent_key")) is None:
-            raise HTTPException(
-                status_code=422, detail=f"unknown agent: {step.get('agent_key')}"
+        key = step.get("agent_key")
+        if AGENT_REGISTRY.get(key) is not None:
+            continue
+        # 自定义 Agent 按租户校验（与 list_agents 可见范围一致）
+        result = await db.execute(
+            select(CustomAgent).where(
+                CustomAgent.key == key, CustomAgent.tenant_id == user.tenant_id
             )
+        )
+        if result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=422, detail=f"unknown agent: {key}")
 
 
 @router.get("", response_model=list[WorkflowRead])
@@ -56,7 +71,7 @@ async def create_workflow(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> Workflow:
-    _validate_steps([s.model_dump() for s in payload.steps])
+    await _validate_steps(db, user, [s.model_dump() for s in payload.steps])
     wf = Workflow(
         user_id=user.id,
         tenant_id=user.tenant_id,
@@ -132,7 +147,7 @@ async def update_workflow(
 
     data = payload.model_dump(exclude_unset=True)
     if "steps" in data:
-        _validate_steps(data["steps"])
+        await _validate_steps(db, user, data["steps"])
     if "schedule" in data:
         sched = data["schedule"]
         data["schedule"] = (
@@ -167,6 +182,7 @@ async def delete_workflow(
 )
 async def run_workflow(
     workflow_id: str,
+    _rl: None = Depends(_run_limit),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> WorkflowRunCreated:
