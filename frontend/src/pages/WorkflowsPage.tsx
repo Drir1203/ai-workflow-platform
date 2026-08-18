@@ -53,6 +53,8 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
 
   const [runningId, setRunningId] = useState<string | null>(null)
   const [runResult, setRunResult] = useState<WorkflowRun | null>(null)
+  // 运行记录中当前展开的一条（点击行可展开/收起，展示各步骤输出）
+  const [expandedRunId, setExpandedRunId] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -179,7 +181,14 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
     try {
       const created = await layer.runWorkflow(id)
       const run = await pollWorkflowRun(created.run_id)
-      setRunResult(run)
+      if (run.status === 'failed') {
+        // 失败：留在弹窗内展示错误详情，便于定位原因
+        setRunResult(run)
+        return
+      }
+      // 成功：自动关闭运行结果弹窗，并在下方运行记录里展开最新一条展示各步骤输出
+      setRunResult(null)
+      setExpandedRunId(run.id)
       await refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : '运行失败')
@@ -316,18 +325,61 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
           </Card>
         ) : (
           <div className="space-y-2">
-            {runs.slice(0, 12).map((run) => (
-              <Card key={run.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                <Badge tone={statusTone(run.status)}>{statusLabel[run.status]}</Badge>
-                <span className="text-[13px] font-medium text-ink">
-                  {workflows.find((w) => w.id === run.workflow_id)?.name ?? run.workflow_id.slice(0, 8)}
-                </span>
-                <Badge tone="neutral">{run.triggered_by === 'scheduled' ? '定时' : '手动'}</Badge>
-                <span className="ml-auto font-mono text-[10.5px] tabular-nums text-ink-5">
-                  {new Date(run.created_at).toLocaleString()}
-                </span>
-              </Card>
-            ))}
+            {runs.slice(0, 12).map((run) => {
+              const open = expandedRunId === run.id
+              return (
+                <Card key={run.id} className="overflow-hidden px-4 py-3">
+                  <button
+                    onClick={() => setExpandedRunId(open ? null : run.id)}
+                    className="flex w-full flex-wrap items-center gap-3 text-left"
+                  >
+                    <Badge tone={statusTone(run.status)}>{statusLabel[run.status]}</Badge>
+                    <span className="text-[13px] font-medium text-ink">
+                      {workflows.find((w) => w.id === run.workflow_id)?.name ?? run.workflow_id.slice(0, 8)}
+                    </span>
+                    <Badge tone="neutral">{run.triggered_by === 'scheduled' ? '定时' : '手动'}</Badge>
+                    <span className="ml-auto flex items-center gap-2 font-mono text-[10.5px] tabular-nums text-ink-5">
+                      {new Date(run.created_at).toLocaleString()}
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className={`transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+                      >
+                        <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                  </button>
+                  {open && (
+                    <div className="mt-3 space-y-2 border-t border-line pt-3">
+                      {run.status === 'failed' && run.error && (
+                        <pre className="whitespace-pre-wrap font-mono text-[11.5px] leading-relaxed text-error">
+                          {run.error}
+                        </pre>
+                      )}
+                      {run.results?.length ? (
+                        run.results.map((res, i) => (
+                          <div key={i} className="flex flex-col gap-1">
+                            <div className="text-[11px] font-medium text-ink-3">
+                              {res.label || agentName(res.agent_key)}
+                              <span className="ml-1.5 font-mono text-[10px] text-ink-5">{res.agent_key}</span>
+                            </div>
+                            <pre className="whitespace-pre-wrap rounded-lg bg-elev1 p-2.5 text-[12px] leading-relaxed text-ink-2">
+                              {res.output ?? '（无输出内容）'}
+                            </pre>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-[12px] text-ink-4">（无步骤输出）</div>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              )
+            })}
           </div>
         )}
       </section>

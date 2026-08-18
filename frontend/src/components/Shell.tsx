@@ -4,6 +4,7 @@ import { demoApi } from '../lib/demo'
 import type { DataLayer, View } from '../lib/view'
 import type { Mode, Note, Project, Task } from '../types'
 import { AiPanel } from './AiPanel'
+import { MobileNav } from './MobileNav'
 import { Sidebar } from './Sidebar'
 import { Skeleton } from './ui/skeleton'
 import { TopBar } from './TopBar'
@@ -127,6 +128,7 @@ export function Shell({ mode, onLogout }: { mode: Mode; onLogout?: () => void })
           )}
         </main>
       </div>
+      <MobileNav view={view} onSelect={setView} />
       <AiPanel layer={layer} />
     </div>
   )

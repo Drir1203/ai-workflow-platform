@@ -40,7 +40,7 @@ export function AiPanel({ layer }: { layer: DataLayer }) {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="AI 助手"
-        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-gold to-gold-deep text-[#1A1406] shadow-gold transition-transform duration-150 hover:scale-[1.04] active:scale-[.95]"
+        className="fixed bottom-20 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-gold to-gold-deep text-[#1A1406] shadow-gold transition-transform duration-150 hover:scale-[1.04] active:scale-[.95] md:bottom-6"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2l1.9 5.1L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.9L12 2zm7 10l1 2.7 2.7 1-2.7 1-1 2.7-1-2.7-2.7-1 2.7-1 1-2.7zM4 13l.9 2.4L7.3 16l-2.4.9L4 19l-.9-2.1L.7 16l2.4-.6L4 13z" />
@@ -48,7 +48,7 @@ export function AiPanel({ layer }: { layer: DataLayer }) {
       </button>
 
       {open && (
-        <div className="glass fixed bottom-24 right-6 z-40 flex h-[440px] w-[360px] max-w-[calc(100vw-48px)] flex-col overflow-hidden rounded-card border border-line-soft shadow-modal animate-fadeUp">
+        <div className="glass fixed bottom-40 right-6 z-40 flex h-[440px] max-h-[calc(100dvh-180px)] w-[360px] max-w-[calc(100vw-48px)] flex-col overflow-hidden rounded-card border border-line-soft shadow-modal animate-fadeUp md:bottom-24">
           <div className="flex items-center justify-between border-b border-line bg-elev1 px-4 py-3">
             <div className="flex items-center gap-2 text-[13px] font-semibold text-ink">
               <span className="h-1.5 w-1.5 rounded-full bg-gold" style={{ boxShadow: '0 0 6px rgba(217,164,65,.8)' }} />

@@ -43,6 +43,8 @@ export function AgentsPage({ layer, projects }: { layer: DataLayer; projects: Pr
   const [form, setForm] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<AgentRun | null>(null)
+  // 运行记录中当前展开的一条（点击行可展开/收起，展示输出内容）
+  const [expandedRunId, setExpandedRunId] = useState<string | null>(null)
 
   // 新建/编辑自定义 Agent 对话框
   const [createOpen, setCreateOpen] = useState(false)
@@ -115,7 +117,14 @@ export function AgentsPage({ layer, projects }: { layer: DataLayer; projects: Pr
       const projectId = (params.project_id as string | undefined) || undefined
       const created = await layer.runAgent(target.key, { params, project_id: projectId })
       const run = await pollRun(created.run_id)
-      setResult(run)
+      if (run.status === 'failed') {
+        // 失败：留在弹窗内展示错误详情，便于定位原因
+        setResult(run)
+        return
+      }
+      // 成功：自动关闭运行弹窗，并在下方运行记录里展开最新一条展示输出内容
+      setTarget(null)
+      setExpandedRunId(run.id)
       await refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : '运行失败')
@@ -361,22 +370,54 @@ export function AgentsPage({ layer, projects }: { layer: DataLayer; projects: Pr
           </Card>
         ) : (
           <div className="space-y-2">
-            {runs.slice(0, 12).map((run) => (
-              <Card key={run.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                <Badge tone={statusTone(run.status)}>{statusLabel[run.status]}</Badge>
-                <span className="text-[13px] font-medium text-ink">
-                  {agents.find((a) => a.key === run.agent_key)?.name ?? run.agent_key}
-                </span>
-                {run.project_id && (
-                  <span className="rounded border border-line-soft bg-elev1 px-1.5 py-0.5 text-[10.5px] text-ink-4">
-                    {projects.find((p) => p.id === run.project_id)?.name ?? run.project_id}
-                  </span>
-                )}
-                <span className="ml-auto font-mono text-[10.5px] tabular-nums text-ink-5">
-                  {new Date(run.created_at).toLocaleString()}
-                </span>
-              </Card>
-            ))}
+            {runs.slice(0, 12).map((run) => {
+              const open = expandedRunId === run.id
+              return (
+                <Card key={run.id} className="overflow-hidden px-4 py-3">
+                  <button
+                    onClick={() => setExpandedRunId(open ? null : run.id)}
+                    className="flex w-full flex-wrap items-center gap-3 text-left"
+                  >
+                    <Badge tone={statusTone(run.status)}>{statusLabel[run.status]}</Badge>
+                    <span className="text-[13px] font-medium text-ink">
+                      {agents.find((a) => a.key === run.agent_key)?.name ?? run.agent_key}
+                    </span>
+                    {run.project_id && (
+                      <span className="rounded border border-line-soft bg-elev1 px-1.5 py-0.5 text-[10.5px] text-ink-4">
+                        {projects.find((p) => p.id === run.project_id)?.name ?? run.project_id}
+                      </span>
+                    )}
+                    <span className="ml-auto flex items-center gap-2 font-mono text-[10.5px] tabular-nums text-ink-5">
+                      {new Date(run.created_at).toLocaleString()}
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className={`transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+                      >
+                        <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                  </button>
+                  {open && (
+                    <div className="mt-3 border-t border-line pt-3">
+                      {run.status === 'failed' ? (
+                        <pre className="whitespace-pre-wrap font-mono text-[11.5px] leading-relaxed text-error">
+                          {run.error ?? '运行失败，无错误详情'}
+                        </pre>
+                      ) : (
+                        <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-ink-2">
+                          {run.output ?? '（无输出内容）'}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              )
+            })}
           </div>
         )}
       </section>
