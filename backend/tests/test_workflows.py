@@ -42,6 +42,20 @@ def _steps(*agent_keys: str) -> list[dict]:
     ]
 
 
+def _graph_steps(*agent_keys: str) -> list[dict]:
+    """带画布元数据的步骤（node_id + position），供可视化编排持久化测试。"""
+    return [
+        {
+            "label": f"步骤{i + 1}",
+            "agent_key": k,
+            "params": {},
+            "node_id": f"n{i}",
+            "position": {"x": i * 240, "y": 0},
+        }
+        for i, k in enumerate(agent_keys)
+    ]
+
+
 # ---------- interpolate 纯函数 ----------
 
 
@@ -285,3 +299,100 @@ async def test_scheduler_registers_and_removes_job(client, auth_headers, monkeyp
         assert sched.get_job(f"wf-{wf_id}") is not None
     finally:
         workflow_scheduler.shutdown()
+
+
+# ---------- 可视化编排图元数据（node_id/position 透传） ----------
+
+
+async def test_workflow_create_persists_graph_metadata(client, auth_headers):
+    """创建时 steps 携带 node_id/position，落库后回读一致。"""
+    r = await client.post(
+        "/api/workflows",
+        json={"name": "画布流程", "steps": _graph_steps("inspection_report", "weekly_report")},
+        headers=auth_headers,
+    )
+    assert r.status_code == 201
+    wf = r.json()
+    assert len(wf["steps"]) == 2
+    assert wf["steps"][0]["node_id"] == "n0"
+    assert wf["steps"][0]["position"] == {"x": 0, "y": 0}
+    assert wf["steps"][1]["node_id"] == "n1"
+
+    r = await client.get(f"/api/workflows/{wf['id']}", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["steps"][1]["position"] == {"x": 240, "y": 0}
+
+
+async def test_workflow_update_persists_graph_metadata(client, auth_headers):
+    """旧式创建后 PATCH 为带图元数据的 steps，回读一致。"""
+    r = await client.post(
+        "/api/workflows", json={"name": "旧式", "steps": _steps("weekly_report")}, headers=auth_headers
+    )
+    wf_id = r.json()["id"]
+
+    r = await client.patch(
+        f"/api/workflows/{wf_id}",
+        json={"steps": _graph_steps("weekly_report", "interview_questions")},
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    steps = r.json()["steps"]
+    assert steps[0]["node_id"] == "n0"
+    assert steps[1]["position"] == {"x": 240, "y": 0}
+
+
+async def test_workflow_run_with_graph_metadata(client, auth_headers, monkeypatch):
+    """执行器不因多余字段受影响：results 顺序 = steps 顺序。
+
+    用必填参数补齐的 agent（competitor_research 需 topic），避免空 params 触发校验失败。
+    """
+    monkeypatch.setattr("app.workflows.executor.get_ai_engine", lambda: _FakeEngine())
+    steps = [
+        {
+            "label": "调研",
+            "agent_key": "competitor_research",
+            "params": {"topic": "AI 项目管理"},
+            "node_id": "n0",
+            "position": {"x": 0, "y": 0},
+        },
+        {
+            "label": "周报",
+            "agent_key": "weekly_report",
+            "params": {},
+            "node_id": "n1",
+            "position": {"x": 240, "y": 0},
+        },
+    ]
+    r = await client.post(
+        "/api/workflows", json={"name": "画布执行", "steps": steps}, headers=auth_headers
+    )
+    wf_id = r.json()["id"]
+
+    r = await client.post(f"/api/workflows/{wf_id}/run", headers=auth_headers)
+    assert r.status_code == 202
+    data = await _wait_workflow_run(client, auth_headers, r.json()["run_id"])
+    assert data["status"] == "succeeded"
+    assert [x["agent_key"] for x in data["results"]] == ["competitor_research", "weekly_report"]
+
+
+async def test_workflow_unknown_agent_with_graph_metadata(client, auth_headers):
+    """图元数据不绕过 agent 校验：未知 agent_key 仍 422。"""
+    r = await client.post(
+        "/api/workflows",
+        json={"name": "坏画布", "steps": _graph_steps("no_such_agent")},
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
+
+
+async def test_workflow_legacy_steps_still_accepted(client, auth_headers):
+    """无 node_id/position 的旧式 steps 仍可创建（兼容存量数据）。"""
+    r = await client.post(
+        "/api/workflows",
+        json={"name": "存量流程", "steps": _steps("weekly_report")},
+        headers=auth_headers,
+    )
+    assert r.status_code == 201
+    step = r.json()["steps"][0]
+    assert "node_id" not in step
+    assert "position" not in step

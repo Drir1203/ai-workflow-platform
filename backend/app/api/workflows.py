@@ -77,7 +77,8 @@ async def create_workflow(
         tenant_id=user.tenant_id,
         name=payload.name,
         description=payload.description,
-        steps=[s.model_dump() for s in payload.steps],
+        # exclude_none: 无 node_id/position 的旧式步骤不落 null 噪音，保持存量数据干净
+        steps=[s.model_dump(exclude_none=True) for s in payload.steps],
         schedule=_normalize_schedule(payload.schedule),
     )
     db.add(wf)
@@ -148,6 +149,10 @@ async def update_workflow(
     data = payload.model_dump(exclude_unset=True)
     if "steps" in data:
         await _validate_steps(db, user, data["steps"])
+        # 与 create 一致：无 node_id/position 的旧式步骤不落 null 噪音
+        data["steps"] = [
+            {k: v for k, v in s.items() if v is not None} for s in data["steps"]
+        ]
     if "schedule" in data:
         sched = data["schedule"]
         data["schedule"] = (

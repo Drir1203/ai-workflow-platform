@@ -4,11 +4,17 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class WorkflowStep(BaseModel):
-    """工作流步骤：一个 Agent 调用及其参数模板。"""
+    """工作流步骤：一个 Agent 调用及其参数模板。
+
+    node_id/position 为前端画布编排预留：可选字段，缺省兼容存量无坐标数据。
+    执行器只读 label/agent_key/params，多余字段透传落库、运行时不参与。
+    """
 
     label: str
     agent_key: str
     params: dict = Field(default_factory=dict)
+    node_id: str | None = None
+    position: dict[str, float] | None = None  # {"x": float, "y": float} 画布坐标
 
 
 class Schedule(BaseModel):
