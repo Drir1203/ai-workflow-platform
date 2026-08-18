@@ -110,10 +110,19 @@ export interface AgentRun {
   created_at: string
 }
 
+export interface WorkflowStepPosition {
+  x: number
+  y: number
+}
+
 export interface WorkflowStep {
   label: string
   agent_key: string
   params: Record<string, unknown>
+  /** 画布节点 id（可视化编排预留；旧数据缺省由前端派生） */
+  node_id?: string
+  /** 画布坐标（可视化编排预留；旧数据缺省由前端自动排布） */
+  position?: WorkflowStepPosition
 }
 
 export interface Schedule {

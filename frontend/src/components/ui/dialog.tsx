@@ -8,9 +8,18 @@ interface DialogProps {
   title?: string
   children: ReactNode
   className?: string
+  /** 宽度档位：默认 md（原 max-w-md），编辑器等大内容用 xl/full */
+  size?: 'md' | 'lg' | 'xl' | 'full'
 }
 
-export function Dialog({ open, onClose, title, children, className }: DialogProps) {
+const sizeCls: Record<NonNullable<DialogProps['size']>, string> = {
+  md: 'max-w-md',
+  lg: 'max-w-2xl',
+  xl: 'max-w-5xl',
+  full: 'max-w-7xl',
+}
+
+export function Dialog({ open, onClose, title, children, className, size = 'md' }: DialogProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -26,8 +35,9 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div
         className={cn(
-          'glass-panel relative w-full max-w-md rounded-card border border-line-soft shadow-modal',
+          'glass-panel relative w-full rounded-card border border-line-soft shadow-modal',
           'animate-fadeUp',
+          sizeCls[size],
           className,
         )}
       >

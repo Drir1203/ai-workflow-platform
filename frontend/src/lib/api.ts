@@ -11,10 +11,12 @@ import type {
   ParamTemplate,
   Project,
   ScanResult,
+  Schedule,
   Task,
   User,
   Workflow,
   WorkflowRun,
+  WorkflowStep,
 } from '../types'
 import { BASE } from './mode'
 
@@ -162,8 +164,8 @@ export const api = {
   createWorkflow: (w: {
     name: string
     description?: string
-    steps: { label: string; agent_key: string; params: Record<string, unknown> }[]
-    schedule?: { cron?: string; interval_minutes?: number } | null
+    steps: WorkflowStep[]
+    schedule?: Schedule | null
   }) => request<Workflow>('POST', '/api/workflows', w),
   updateWorkflow: (id: string, patch: Partial<Workflow>) =>
     request<Workflow>('PATCH', `/api/workflows/${id}`, patch),

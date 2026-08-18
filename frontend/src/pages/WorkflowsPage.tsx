@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Dialog } from '../components/ui/dialog'
 import { Empty } from '../components/ui/empty'
 import { Input, Textarea } from '../components/ui/input'
+import { WorkflowCanvas, type WorkflowCanvasHandle } from '../components/workflow/WorkflowCanvas'
 import type { DataLayer } from '../lib/view'
-import type { AgentInfo, ParamTemplate, Project, RunStatus, Workflow, WorkflowRun } from '../types'
+import type { AgentInfo, ParamTemplate, Project, RunStatus, Schedule, Workflow, WorkflowRun } from '../types'
 
 function statusTone(status: RunStatus) {
   return status === 'succeeded' ? 'success' : status === 'failed' ? 'error' : 'info'
@@ -26,30 +27,24 @@ function scheduleText(schedule: Workflow['schedule']): string | null {
   return null
 }
 
-interface StepDraft {
-  label: string
-  agent_key: string
-  paramsJson: string
-  tplId: string // 编辑态：当前选中的预置模板（不提交给后端）
-}
-
 export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects: Project[] }) {
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [agents, setAgents] = useState<AgentInfo[]>([])
   const [runs, setRuns] = useState<WorkflowRun[]>([])
   const [templates, setTemplates] = useState<ParamTemplate[]>([])
-  const [tplName, setTplName] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [createOpen, setCreateOpen] = useState(false)
+  // 编辑器（新建/编辑共用）：editing=null 表示新建
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [editing, setEditing] = useState<Workflow | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [steps, setSteps] = useState<StepDraft[]>([{ label: '', agent_key: '', paramsJson: '', tplId: '' }])
   const [cron, setCron] = useState('')
   const [intervalMinutes, setIntervalMinutes] = useState('')
   const [enabled, setEnabled] = useState(true)
   const [busy, setBusy] = useState(false)
+  const canvasRef = useRef<WorkflowCanvasHandle>(null)
 
   const [runningId, setRunningId] = useState<string | null>(null)
   const [runResult, setRunResult] = useState<WorkflowRun | null>(null)
@@ -80,97 +75,76 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
     refresh()
   }, [refresh])
 
-  const setStep = (i: number, patch: Partial<StepDraft>) =>
-    setSteps((s) => s.map((step, idx) => (idx === i ? { ...step, ...patch } : step)))
-
-  // 打开弹窗时重置草稿，避免上次取消/成功后残留旧输入（关闭不清空，只是不再显示）
+  // 打开新建：清空表单
   const openCreate = () => {
+    setEditing(null)
     setName('')
     setDescription('')
-    setSteps([{ label: '', agent_key: '', paramsJson: '', tplId: '' }])
     setCron('')
     setIntervalMinutes('')
     setEnabled(true)
-    setTplName('')
-    setCreateOpen(true)
+    setEditorOpen(true)
   }
 
-  const addStep = () => setSteps((s) => [...s, { label: '', agent_key: '', paramsJson: '', tplId: '' }])
-  const removeStep = (i: number) => setSteps((s) => (s.length === 1 ? s : s.filter((_, idx) => idx !== i)))
-
-  // 选中预置模板 → 把模板参数 JSON 填进 paramsJson（可按需再改）
-  const applyStepTemplate = (i: number, id: string) => {
-    setStep(i, { tplId: id })
-    const tpl = templates.find((t) => t.id === id)
-    if (!tpl) return
-    setStep(i, { paramsJson: JSON.stringify(tpl.params ?? {}, null, 2) })
+  // 打开编辑：回填表单（旧数据无 position 时画布自动水平排布，保存即迁移回写）
+  const openEdit = (wf: Workflow) => {
+    setEditing(wf)
+    setName(wf.name)
+    setDescription(wf.description ?? '')
+    setCron(wf.schedule?.cron ?? '')
+    setIntervalMinutes(wf.schedule?.interval_minutes ? String(wf.schedule.interval_minutes) : '')
+    setEnabled(wf.enabled)
+    setEditorOpen(true)
   }
 
-  // 把当前步骤的参数保存为命名模板，供后续复用
-  async function saveStepTemplate(i: number) {
-    const s = steps[i]
-    if (!s?.agent_key || !tplName.trim() || busy) return
-    let params: Record<string, unknown> = {}
-    if (s.paramsJson.trim()) {
-      try {
-        params = JSON.parse(s.paramsJson)
-      } catch {
-        // 参数不是合法 JSON 时明确报错，避免静默存成空模板
-        setError(`步骤 ${i + 1} 的参数 JSON 格式错误`)
-        return
-      }
+  // 保存编辑器：画布线性化 → 创建或更新
+  async function saveEditor() {
+    if (!name.trim() || busy) return
+    const linear = canvasRef.current?.linearize()
+    if (!linear) return
+    if ('error' in linear) {
+      setError(linear.error)
+      return
     }
     setBusy(true)
     try {
-      const created = await layer.createParamTemplate({ name: tplName.trim(), agent_key: s.agent_key, params })
+      let schedule: Schedule | null = null
+      if (cron.trim()) schedule = { cron: cron.trim(), interval_minutes: null }
+      else if (intervalMinutes.trim() && Number(intervalMinutes) > 0)
+        schedule = { cron: null, interval_minutes: Number(intervalMinutes) }
+      if (editing) {
+        await layer.updateWorkflow(editing.id, {
+          name: name.trim(),
+          description: description.trim() || undefined,
+          steps: linear.steps,
+          schedule,
+          enabled,
+        })
+      } else {
+        await layer.createWorkflow({
+          name: name.trim(),
+          description: description.trim() || undefined,
+          steps: linear.steps,
+          schedule,
+        })
+      }
+      await refresh()
+      setEditorOpen(false)
+      setEditing(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '保存失败')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // 存为预置模板（画布右侧面板透传）
+  async function handleSaveTemplate(agentKey: string, tplName: string, params: Record<string, unknown>) {
+    try {
+      const created = await layer.createParamTemplate({ name: tplName, agent_key: agentKey, params })
       setTemplates((prev) => [created, ...prev])
-      setTplName('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '保存模板失败')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function submitCreate() {
-    if (!name.trim() || steps.some((s) => !s.agent_key) || busy) return
-    setBusy(true)
-    try {
-      const parsedSteps = steps.map((s) => {
-        let params: Record<string, unknown> = {}
-        if (s.paramsJson.trim()) {
-          try {
-            params = JSON.parse(s.paramsJson)
-          } catch {
-            // 参数 JSON 非法：抛错中止创建（由外层 catch 显示到错误条）
-            throw new Error(`步骤「${s.label.trim() || s.agent_key}」的参数 JSON 格式错误`)
-          }
-        }
-        return { label: s.label.trim() || s.agent_key, agent_key: s.agent_key, params }
-      })
-      let schedule: { cron?: string; interval_minutes?: number } | null = null
-      if (cron.trim()) schedule = { cron: cron.trim() }
-      else if (intervalMinutes.trim() && Number(intervalMinutes) > 0)
-        schedule = { interval_minutes: Number(intervalMinutes) }
-      await layer.createWorkflow({
-        name: name.trim(),
-        description: description.trim() || undefined,
-        steps: parsedSteps,
-        schedule,
-      })
-      await refresh()
-      setCreateOpen(false)
-      setName('')
-      setDescription('')
-      setSteps([{ label: '', agent_key: '', paramsJson: '', tplId: '' }])
-      setCron('')
-      setIntervalMinutes('')
-      setEnabled(true)
-      setTplName('')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '创建失败')
-    } finally {
-      setBusy(false)
     }
   }
 
@@ -232,7 +206,7 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[20px] font-[650] tracking-tight text-ink">工作流</h1>
-          <p className="mt-1 text-[12.5px] text-ink-3">多步 Agent 编排 · 上一步输出注入下一步 · 定时触发</p>
+          <p className="mt-1 text-[12.5px] text-ink-3">拖拽画布编排多步 Agent · 上一步输出注入下一步 · 定时触发</p>
         </div>
         <Button onClick={openCreate}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
@@ -302,6 +276,9 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
                       onClick={() => runWorkflow(wf.id)}
                     >
                       立即运行
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => openEdit(wf)}>
+                      编辑
                     </Button>
                     <Button size="sm" variant="danger" onClick={() => deleteWorkflow(wf.id)}>
                       删除
@@ -384,121 +361,68 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
         )}
       </section>
 
-      {/* 新建工作流 */}
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} title="新建工作流">
-        <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-ink-3">名称</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="如：每日巡检" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-ink-3">描述（可选）</label>
-            <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="一句话说明用途" />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[12px] text-ink-3">步骤</label>
-              <Button size="sm" variant="secondary" onClick={addStep}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                  <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-                </svg>
-                加一步
-              </Button>
+      {/* 编辑器（新建/编辑共用）：顶部基本信息 + 画布 + 底部保存 */}
+      <Dialog
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        title={editing ? '编辑工作流' : '新建工作流'}
+        size="xl"
+      >
+        <div className="flex max-h-[80vh] flex-col gap-4">
+          <div className="flex flex-wrap gap-3">
+            <div className="min-w-52 flex-1 flex-col gap-1.5">
+              <label className="text-[12px] text-ink-3">名称</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="如：每日巡检" />
             </div>
-            {steps.map((s, i) => (
-              <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-line-soft bg-elev1 p-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] text-ink-5">{i + 1}</span>
-                  <Input
-                    value={s.label}
-                    onChange={(e) => setStep(i, { label: e.target.value })}
-                    placeholder="步骤名（可选）"
-                    className="h-8"
-                  />
-                  <button onClick={() => removeStep(i)} className="text-ink-4 hover:text-error" title="删除步骤">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
-                    </svg>
-                  </button>
-                </div>
-                <select
-                  className="h-9 w-full rounded-lg border border-line-soft bg-elev1 px-3 text-[13px] text-ink focus:border-gold-primary/60 focus:outline-none focus:ring-2 focus:ring-gold-primary/25"
-                  value={s.agent_key}
-                  onChange={(e) => setStep(i, { agent_key: e.target.value, tplId: '' })}
-                >
-                  <option value="">选择智能体…</option>
-                  {agents.map((a) => (
-                    <option key={a.key} value={a.key}>
-                      {a.name}（{a.key}）
-                    </option>
-                  ))}
-                </select>
-                <div className="flex items-center gap-2">
-                  <select
-                    className="h-8 flex-1 rounded-lg border border-line-soft bg-elev1 px-2 font-mono text-[11.5px] text-ink focus:outline-none disabled:opacity-50"
-                    value={s.tplId}
-                    onChange={(e) => applyStepTemplate(i, e.target.value)}
-                    disabled={!s.agent_key}
-                  >
-                    <option value="">模板回填…</option>
-                    {templates
-                      .filter((t) => t.agent_key === s.agent_key)
-                      .map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                  </select>
-                  <Input
-                    value={tplName}
-                    onChange={(e) => setTplName(e.target.value)}
-                    placeholder="存为模板名"
-                    className="h-8 w-32 font-mono text-[11.5px]"
-                    disabled={!s.agent_key}
-                  />
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => saveStepTemplate(i)}
-                    disabled={!s.agent_key || !tplName.trim()}
-                    loading={busy}
-                  >
-                    存为模板
-                  </Button>
-                </div>
-                <Textarea
-                  rows={2}
-                  value={s.paramsJson}
-                  onChange={(e) => setStep(i, { paramsJson: e.target.value })}
-                  placeholder='参数 JSON（可选），可用 {{step.0.output}} / {{prev_output}} 引用上一步输出'
-                  className="font-mono text-[11.5px]"
-                />
-              </div>
-            ))}
+            <div className="min-w-52 flex-1 flex-col gap-1.5">
+              <label className="text-[12px] text-ink-3">描述（可选）</label>
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="一句话说明用途" />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2 rounded-lg border border-line-soft bg-elev1 p-2.5">
+          <div className="flex flex-col gap-1.5">
             <label className="text-[12px] text-ink-3">定时调度（可选，二选一）</label>
-            <Input value={cron} onChange={(e) => setCron(e.target.value)} placeholder="cron 表达式，如 0 9 * * 1" className="font-mono text-[12px]" />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={cron}
+                onChange={(e) => setCron(e.target.value)}
+                placeholder="cron 表达式，如 0 9 * * 1"
+                className="w-48 font-mono text-[12px]"
+              />
               <Input
                 type="number"
                 value={intervalMinutes}
                 onChange={(e) => setIntervalMinutes(e.target.value)}
                 placeholder="间隔分钟"
-                className="font-mono text-[12px]"
+                className="w-28 font-mono text-[12px]"
               />
               <span className="text-[11px] text-ink-4">分钟</span>
+              <label className="ml-auto flex cursor-pointer items-center gap-2 text-[12px] text-ink-3">
+                <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+                启用
+              </label>
             </div>
-            <label className="flex cursor-pointer items-center gap-2 text-[12px] text-ink-3">
-              <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-              启用
-            </label>
           </div>
 
-          <Button onClick={submitCreate} loading={busy} disabled={busy || !name.trim() || steps.some((s) => !s.agent_key)}>
-            创建
+          {/* 画布：固定高度防 React Flow 高度塌陷 */}
+          <div className="h-[50vh] min-h-[360px]">
+            <WorkflowCanvas
+              ref={canvasRef}
+              initialSteps={editing?.steps ?? []}
+              agents={agents}
+              projects={projects}
+              templates={templates}
+              onValidationError={setError}
+              onSaveTemplate={handleSaveTemplate}
+            />
+          </div>
+
+          <Button
+            onClick={saveEditor}
+            loading={busy}
+            disabled={busy || !name.trim() || !agents.length}
+          >
+            {editing ? '保存修改' : '创建'}
           </Button>
         </div>
       </Dialog>

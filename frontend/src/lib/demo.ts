@@ -12,9 +12,11 @@ import type {
   ParamTemplate,
   Project,
   ScanResult,
+  Schedule,
   Task,
   Workflow,
   WorkflowRun,
+  WorkflowStep,
 } from '../types'
 
 const iso = (daysAgo: number, h = 10) => {
@@ -165,7 +167,11 @@ let agentRuns: AgentRun[] = [
 let workflows: Workflow[] = [
   {
     id: 'wf-1', user_id: 'demo-user', name: '每日巡检', description: '每天 9 点自动生成巡检报告',
-    steps: [{ label: '巡检', agent_key: 'inspection_report', params: { project_id: 'p-1' } }],
+    // 两节点展示画布编排形态：node_id/position 供可视化编辑器渲染
+    steps: [
+      { label: '巡检', agent_key: 'inspection_report', params: { project_id: 'p-1' }, node_id: 'n0', position: { x: 0, y: 0 } },
+      { label: '周报', agent_key: 'weekly_report', params: { project_id: 'p-1' }, node_id: 'n1', position: { x: 276, y: 0 } },
+    ],
     schedule: { cron: '0 9 * * *', interval_minutes: null }, enabled: true, created_at: iso(3), updated_at: iso(1),
   },
 ]
@@ -401,8 +407,8 @@ export const demoApi = {
   async createWorkflow(w: {
     name: string
     description?: string
-    steps: { label: string; agent_key: string; params: Record<string, unknown> }[]
-    schedule?: { cron?: string; interval_minutes?: number } | null
+    steps: WorkflowStep[]
+    schedule?: Schedule | null
   }): Promise<Workflow> {
     await delay()
     const now = new Date().toISOString()
