@@ -135,3 +135,26 @@ async def test_get_run_denied_for_other_user(client, auth_headers, monkeypatch):
 
     r = await client.get(f"/api/agents/runs/{run_id}", headers=headers_b)
     assert r.status_code == 404
+
+    # B 的运行记录列表也看不到 A 的记录（租户隔离）
+    r = await client.get("/api/agents/runs", headers=headers_b)
+    assert r.json()["total"] == 0
+
+
+async def test_run_agent_cross_tenant_project_404(client, auth_headers, monkeypatch):
+    """数据隔离 R17：不能把 run 挂到他人租户的项目下（项目归属校验）。"""
+    r = await client.post("/api/projects", json={"name": "A 的项目"}, headers=auth_headers)
+    pid = r.json()["id"]
+
+    r = await client.post(
+        "/api/auth/register",
+        json={"email": "b@example.com", "password": "secret123", "name": "B"},
+    )
+    headers_b = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    r = await client.post(
+        "/api/agents/weekly_report/run",
+        json={"project_id": pid, "params": {}},
+        headers=headers_b,
+    )
+    assert r.status_code == 404

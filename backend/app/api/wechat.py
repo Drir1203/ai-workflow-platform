@@ -29,8 +29,9 @@ async def subscribe(
     user: User = Depends(get_current_user),
 ) -> WechatSubscribeResponse:
     """小程序端 requestSubscribeMessage + wx.login 后，把 openid 绑定到某任务。"""
+    # 数据隔离 R17：任务必须属于当前租户，防跨租户订阅他人任务的到期提醒
     task = await db.get(Task, payload.task_id)
-    if task is None:
+    if task is None or task.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="task not found")
     try:
         openid = await code2session(payload.code)

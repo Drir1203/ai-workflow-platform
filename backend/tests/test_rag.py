@@ -435,3 +435,52 @@ async def test_knowledge_no_match_skips_llm(client, auth_headers, monkeypatch):
     assert r.status_code == 200
     assert "未找到" in r.json()["answer"]
     assert r.json()["sources"] == []
+
+
+async def test_knowledge_isolated_between_users(client, auth_headers, monkeypatch):
+    """数据隔离 R17：B 无法对 A 项目的知识库做上传/列表/删除/问答（一律 404）。"""
+    pid = await _make_project(client, auth_headers)
+    r = await client.post(
+        f"/api/projects/{pid}/documents",
+        files={"file": ("guide.md", MD_CONTENT.encode("utf-8"), "text/markdown")},
+        headers=auth_headers,
+    )
+    assert r.status_code == 201
+    doc_id = r.json()["id"]
+
+    # 注册第二个用户（独立租户）
+    r = await client.post(
+        "/api/auth/register",
+        json={"email": "other@example.com", "password": "secret123", "name": "乙"},
+    )
+    headers_b = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    # 上传到 A 的项目 → 404（项目归属校验）
+    r = await client.post(
+        f"/api/projects/{pid}/documents",
+        files={"file": ("b.md", MD_CONTENT.encode("utf-8"), "text/markdown")},
+        headers=headers_b,
+    )
+    assert r.status_code == 404
+
+    # 列表 → 404
+    assert (await client.get(f"/api/projects/{pid}/documents", headers=headers_b)).status_code == 404
+
+    # 删除 A 的文档 → 404
+    assert (
+        await client.delete(f"/api/projects/{pid}/documents/{doc_id}", headers=headers_b)
+    ).status_code == 404
+
+    # 问答 → 404
+    engine = _FakeAiEngine(answer="不应被调用")
+    monkeypatch.setattr("app.api.knowledge.get_ai_engine", lambda: engine)
+    r = await client.post(
+        f"/api/projects/{pid}/knowledge", json={"query": "部署流程"}, headers=headers_b
+    )
+    assert r.status_code == 404
+    assert engine.prompts == [], "跨租户问答不应触发 LLM"
+
+    # A 的数据安然无恙
+    r = await client.get(f"/api/projects/{pid}/documents", headers=auth_headers)
+    assert r.status_code == 200
+    assert len(r.json()) == 1

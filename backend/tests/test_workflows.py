@@ -138,9 +138,15 @@ async def test_workflow_not_owned_404(client, auth_headers):
     )
     headers_b = {"Authorization": f"Bearer {r.json()['access_token']}"}
 
+    # B 的列表看不到 A 的工作流（租户隔离）
+    assert (await client.get("/api/workflows", headers=headers_b)).json() == []
     assert (await client.get(f"/api/workflows/{wf_id}", headers=headers_b)).status_code == 404
     assert (
         await client.delete(f"/api/workflows/{wf_id}", headers=headers_b)
+    ).status_code == 404
+    # B 不能运行 A 的工作流（租户隔离）
+    assert (
+        await client.post(f"/api/workflows/{wf_id}/run", headers=headers_b)
     ).status_code == 404
 
 

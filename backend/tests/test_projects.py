@@ -54,3 +54,34 @@ async def test_projects_require_auth(client):
 async def test_project_not_found(client, auth_headers):
     r = await client.get("/api/projects/nope", headers=auth_headers)
     assert r.status_code == 404
+
+
+async def test_projects_isolated_between_users(client, auth_headers):
+    """数据隔离：第二用户的列表不含他人项目，按 id 访问/改/删一律 404（IDOR 防护）。"""
+    r = await client.post("/api/projects", json={"name": "A 的项目"}, headers=auth_headers)
+    assert r.status_code == 201
+    pid = r.json()["id"]
+
+    r = await client.post(
+        "/api/auth/register",
+        json={"email": "other@example.com", "password": "secret123", "name": "乙"},
+    )
+    assert r.status_code == 201
+    headers2 = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    # B 的列表为空，看不到 A 的项目
+    r = await client.get("/api/projects", headers=headers2)
+    assert r.status_code == 200
+    assert r.json() == []
+
+    # B 对 A 项目的 读/改/删 全部 404（不泄露存在性）
+    assert (await client.get(f"/api/projects/{pid}", headers=headers2)).status_code == 404
+    assert (
+        await client.patch(f"/api/projects/{pid}", json={"status": "archived"}, headers=headers2)
+    ).status_code == 404
+    assert (await client.delete(f"/api/projects/{pid}", headers=headers2)).status_code == 404
+
+    # A 的项目安然无恙
+    r = await client.get(f"/api/projects/{pid}", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["name"] == "A 的项目"

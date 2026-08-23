@@ -294,8 +294,13 @@ def test_validate_params_preserves_int_and_drops_empty_optional():
     assert cleaned3 == {"count": 1, "extra": "x"}
 
 
-async def test_run_shared_with_tenant_mate(client, auth_headers, monkeypatch):
-    """同租户其他用户可运行自定义 Agent（团队共享模型，与 list_agents 可见范围一致）。"""
+async def test_run_shared_with_tenant_mate(client, auth_headers, monkeypatch, db_session):
+    """同租户其他用户可运行自定义 Agent（团队共享模型，与 list_agents 可见范围一致）。
+    R17 后注册用户各自独立租户，测试显式把 mate 移入 A 的租户来构造「同租户」场景。"""
+    from sqlalchemy import select
+
+    from app.models import User
+
     engine = _RecordingEngine()
     monkeypatch.setattr("app.agents.runner.get_ai_engine", lambda: engine)
     created = await _create_agent(client, auth_headers)
@@ -306,6 +311,16 @@ async def test_run_shared_with_tenant_mate(client, auth_headers, monkeypatch):
     )
     assert r.status_code == 201
     headers_mate = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    # 团队共享：把 mate 的租户改为与 A（test@example.com）相同，模拟「同一团队的成员」
+    owner = (
+        await db_session.execute(select(User).where(User.email == "test@example.com"))
+    ).scalar_one()
+    mate = (
+        await db_session.execute(select(User).where(User.email == "mate@example.com"))
+    ).scalar_one()
+    mate.tenant_id = owner.tenant_id
+    await db_session.commit()
 
     r = await client.post(
         f"/api/agents/{created['key']}/run",

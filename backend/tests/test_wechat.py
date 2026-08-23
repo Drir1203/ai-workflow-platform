@@ -45,6 +45,29 @@ async def test_subscribe_success(client, auth_headers, monkeypatch):
     assert r.json()["status"] == "subscribed"
 
 
+async def test_subscribe_cross_tenant_task_404(client, auth_headers, monkeypatch):
+    """数据隔离 R17：不能订阅他人租户的任务（任务归属校验）。"""
+    pid = await _make_project(client, auth_headers)
+    tid = await _make_task(client, auth_headers, pid)
+
+    r = await client.post(
+        "/api/auth/register",
+        json={"email": "b@example.com", "password": "secret123", "name": "B"},
+    )
+    headers_b = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    async def fake_code2session(code: str) -> str:
+        return "openid_b"
+
+    monkeypatch.setattr(wechat_api, "code2session", fake_code2session)
+    r = await client.post(
+        "/api/wechat/subscribe",
+        json={"code": "wx-code", "task_id": tid, "template_id": "tpl_due"},
+        headers=headers_b,
+    )
+    assert r.status_code == 404
+
+
 async def test_subscribe_task_not_found(client, auth_headers, monkeypatch):
     async def fake_code2session(code: str) -> str:
         return "openid_test"

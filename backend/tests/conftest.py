@@ -63,6 +63,8 @@ async def client():
             yield session
 
     app.dependency_overrides[get_db] = override_get_db
+    # 暴露给 db_session fixture：同引擎会话，供测试直接改库构造场景（如同租户）
+    app.state.test_session_factory = factory
 
     # 后台 Agent/Workflow 任务自开会话，指向测试库
     original_session_factory = agent_run_manager.session_factory
@@ -80,9 +82,18 @@ async def client():
     workflow_run_manager.session_factory = SessionLocal
     workflow_scheduler.session_factory = SessionLocal
     app.dependency_overrides.clear()
+    app.state.test_session_factory = None
     await engine.dispose()
     if not TEST_DATABASE_URL:
         os.unlink(tmp.name)
+
+
+@pytest_asyncio.fixture
+async def db_session(client):
+    """暴露测试库会话（与 client 同一引擎）：供测试直接改库构造团队共享等场景。"""
+    factory = app.state.test_session_factory
+    async with factory() as session:
+        yield session
 
 
 @pytest_asyncio.fixture

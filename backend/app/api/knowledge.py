@@ -37,9 +37,11 @@ _llm_limit = rate_limit(settings.ratelimit_llm_per_min, 60, scope="llm")
 _upload_limit = rate_limit(settings.ratelimit_upload_per_min, 60, scope="upload")
 
 
-async def _get_project_or_404(db: AsyncSession, project_id: str) -> Project:
+async def _get_project_or_404(db: AsyncSession, project_id: str, user: User) -> Project:
+    """取当前租户下的项目；不存在或归属他租户一律 404，不泄露存在性（IDOR 防护）。
+    知识库所有接口都挂在项目下，必须先过这道租户门才能读写文档。"""
     project = await db.get(Project, project_id)
-    if project is None:
+    if project is None or project.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="project not found")
     return project
 
@@ -97,9 +99,9 @@ async def upload_document(
     file: UploadFile = File(...),
     _rl: None = Depends(_upload_limit),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> Document:
-    project = await _get_project_or_404(db, project_id)
+    project = await _get_project_or_404(db, project_id, user)
     data = await file.read()
     if len(data) > settings.rag_max_upload_mb * 1024 * 1024:
         raise HTTPException(
@@ -132,9 +134,9 @@ async def upload_document(
 async def list_documents(
     project_id: str,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> list[Document]:
-    await _get_project_or_404(db, project_id)
+    await _get_project_or_404(db, project_id, user)
     result = await db.execute(
         select(Document)
         .where(Document.project_id == project_id)
@@ -147,10 +149,10 @@ async def list_documents(
 async def scan_documents(
     project_id: str,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> ScanResult:
     """扫描 project.local_path 下的 md/txt 递归导入（R10）。文件 IO 在线程池执行。"""
-    project = await _get_project_or_404(db, project_id)
+    project = await _get_project_or_404(db, project_id, user)
     root = project.local_path
     if not root:
         raise HTTPException(status_code=400, detail="项目未配置 local_path，无法扫描")
@@ -209,11 +211,12 @@ async def delete_document(
     project_id: str,
     document_id: str,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> None:
-    await _get_project_or_404(db, project_id)
+    await _get_project_or_404(db, project_id, user)
     doc = await db.get(Document, document_id)
-    if doc is None or doc.project_id != project_id:
+    # 文档归属必须同时匹配租户与项目，防跨租户删除
+    if doc is None or doc.project_id != project_id or doc.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="document not found")
     # SQLite 默认不强制外键，显式删 chunks 保证级联一致
     await db.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document_id))
@@ -230,7 +233,7 @@ async def query_knowledge(
     user: User = Depends(get_current_user),
 ) -> KnowledgeResponse:
     """项目知识问答：关键词检索 top-k → 围栏 prompt → engine.chat（R9）。"""
-    await _get_project_or_404(db, project_id)
+    await _get_project_or_404(db, project_id, user)
     retriever = KeywordRetriever(top_k=settings.rag_top_k)
     chunks = await retriever.top_chunks(db, project_id, payload.query, top_k=settings.rag_top_k)
     if not chunks:

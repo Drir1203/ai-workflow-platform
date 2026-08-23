@@ -57,9 +57,10 @@ async def _validate_steps(db: AsyncSession, user: User, steps: list[dict]) -> No
 async def list_workflows(
     db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ) -> list[Workflow]:
+    # 数据隔离 R17：列表按租户可见（团队共享模型，与 agents.py list_agents 一致）
     result = await db.execute(
         select(Workflow)
-        .where(Workflow.user_id == user.id)
+        .where(Workflow.tenant_id == user.tenant_id)
         .order_by(Workflow.created_at.desc())
     )
     return list(result.scalars().all())
@@ -95,7 +96,8 @@ async def list_workflow_runs(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> Paginated[WorkflowRunRead]:
-    where = [WorkflowRun.user_id == user.id]
+    # 数据隔离 R17：运行记录按租户可见（团队共享模型）
+    where = [WorkflowRun.tenant_id == user.tenant_id]
     total = (
         await db.execute(select(func.count()).select_from(WorkflowRun).where(*where))
     ).scalar_one()
@@ -118,7 +120,7 @@ async def get_workflow_run(
     user: User = Depends(get_current_user),
 ) -> WorkflowRun:
     run = await db.get(WorkflowRun, run_id)
-    if run is None or run.user_id != user.id:
+    if run is None or run.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="run not found")
     return run
 
@@ -129,8 +131,9 @@ async def get_workflow(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> Workflow:
+    # 数据隔离 R17：查看按租户共享（团队共享模型）
     wf = await db.get(Workflow, workflow_id)
-    if wf is None or wf.user_id != user.id:
+    if wf is None or wf.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="workflow not found")
     return wf
 
@@ -142,6 +145,7 @@ async def update_workflow(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> Workflow:
+    # 数据隔离 R17：编辑仅创建者本人（与 agents.py update_custom_agent 一致）
     wf = await db.get(Workflow, workflow_id)
     if wf is None or wf.user_id != user.id:
         raise HTTPException(status_code=404, detail="workflow not found")
@@ -172,6 +176,7 @@ async def delete_workflow(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> None:
+    # 数据隔离 R17：删除仅创建者本人
     wf = await db.get(Workflow, workflow_id)
     if wf is None or wf.user_id != user.id:
         raise HTTPException(status_code=404, detail="workflow not found")
@@ -191,8 +196,9 @@ async def run_workflow(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> WorkflowRunCreated:
+    # 数据隔离 R17：运行按租户共享（同租户可触发，与 agents.py run_agent 一致）
     wf = await db.get(Workflow, workflow_id)
-    if wf is None or wf.user_id != user.id:
+    if wf is None or wf.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="workflow not found")
     run = WorkflowRun(
         tenant_id=wf.tenant_id,

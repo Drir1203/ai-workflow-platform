@@ -158,7 +158,8 @@ async def list_runs(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> Paginated[AgentRunRead]:
-    where = [AgentRun.user_id == user.id]
+    # 数据隔离 R17：运行记录按租户可见（团队共享模型，与 workflows 一致）
+    where = [AgentRun.tenant_id == user.tenant_id]
     if project_id:
         where.append(AgentRun.project_id == project_id)
     if agent_key:
@@ -185,7 +186,7 @@ async def get_run(
     user: User = Depends(get_current_user),
 ) -> AgentRun:
     run = await db.get(AgentRun, run_id)
-    if run is None or run.user_id != user.id:
+    if run is None or run.tenant_id != user.tenant_id:
         raise HTTPException(status_code=404, detail="run not found")
     return run
 
@@ -220,8 +221,9 @@ async def run_agent(
 
     project_id = payload.project_id
     if project_id:
+        # 数据隔离 R17：项目必须属于当前租户，防跨租户把 run 挂到他人项目下
         project = await db.get(Project, project_id)
-        if project is None:
+        if project is None or project.tenant_id != user.tenant_id:
             raise HTTPException(status_code=404, detail="project not found")
 
     run = AgentRun(

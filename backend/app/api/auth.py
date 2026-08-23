@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,10 +27,14 @@ async def register(
     result = await db.execute(select(User).where(User.email == payload.email))
     if result.scalar_one_or_none() is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email already registered")
+    # 每用户分配独立私有租户（数据隔离 R17）：用户注册后其全部数据
+    # 挂在独有 tenant_id 下，projects/tasks/notes 等按该值过滤，天然互不可见。
+    # 后续团队共享能力 = 把成员加进同一租户，无需改表结构。
     user = User(
         email=payload.email,
         password_hash=hash_password(payload.password),
         name=payload.name,
+        tenant_id=str(uuid4()),
     )
     db.add(user)
     await db.commit()
