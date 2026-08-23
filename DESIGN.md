@@ -1,6 +1,6 @@
-# ProjectHub AI · Design System（DESIGN.md）
+# AI智序 · Design System（DESIGN.md）
 
-> **本文件是 ProjectHub AI 平台（Web / 微信小程序 / H5 / 原生 App）视觉与交互的唯一事实源。**
+> **本文件是 AI智序 平台（Web / 微信小程序 / H5 / 原生 App）视觉与交互的唯一事实源。**
 > 所有页面、组件、动效、文案规范都以它为准；改风格 = 先改本文件。
 > 方向：**A · 黑金旗舰（Obsidian）** · 2026-08-06 选定 · 依据 qiaomu-design 风格试衣间 R2。
 

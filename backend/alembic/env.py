@@ -1,4 +1,4 @@
-"""ProjectHub AI - Alembic Migration Environment."""
+"""AI智序 - Alembic Migration Environment."""
 
 import asyncio
 from logging.config import fileConfig

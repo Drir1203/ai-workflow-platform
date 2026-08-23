@@ -1,4 +1,4 @@
-# ProjectHub AI - Dify CE 可选栈（profile 门控，默认不启动）
+# AI智序 - Dify CE 可选栈（profile 门控，默认不启动）
 # ⚠️ 本文件定义 Dify 接入所需的「核心契约」服务（api/worker/web），
 #    完整 Dify CE 部署（sandbox、ssrf_proxy、plugin_daemon 及 Dify 自带的
 #    postgres/redis/weaviate）请以官方 Dify CE docker-compose 为准，合并进来后

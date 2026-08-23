@@ -9,7 +9,7 @@ export default defineAppConfig({
     backgroundTextStyle: 'dark',
     backgroundColor: '#0C0C0B',
     navigationBarBackgroundColor: '#0C0C0B',
-    navigationBarTitleText: 'ProjectHub AI',
+    navigationBarTitleText: 'AI智序',
     navigationBarTextStyle: 'white',
   },
 })

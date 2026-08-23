@@ -113,7 +113,7 @@ async def fetch_url(url: str) -> str:
                 raise ValueError("不允许访问的 URL（SSRF 防护）")
             resp = await client.get(
                 current,
-                headers={"User-Agent": "ProjectHub-Agent/1.0"},
+                headers={"User-Agent": "AIZhixu-Agent/1.0"},
                 follow_redirects=False,
             )
             if resp.status_code in (301, 302, 303, 307, 308):

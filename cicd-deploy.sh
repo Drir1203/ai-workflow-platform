@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ════════════════════════════════════════════════════════════════
-# ProjectHub AI - CI/CD 部署脚本（Docker 化）
+# AI智序 - CI/CD 部署脚本（Docker 化）
 # ════════════════════════════════════════════════════════════════
 # 由 GitHub Actions（.github/workflows/deploy.yml）经 SSH 调用：
 #   bash /opt/projecthub-ai/cicd-deploy.sh
@@ -148,7 +148,7 @@ fi
 
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}  ProjectHub AI 部署完成！${NC}"
+echo -e "${GREEN}  AI智序 部署完成！${NC}"
 echo -e "${GREEN}  入口：http://服务器IP/ （HTTPS 按 DEPLOYMENT.md 启用）${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════${NC}"
 echo ""

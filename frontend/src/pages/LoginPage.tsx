@@ -41,7 +41,7 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
           </div>
           <div>
             <div className="text-[20px] font-[650] tracking-tight text-ink">
-              ProjectHub <span className="text-gold">AI</span>
+              AI <span className="text-gold">智序</span>
             </div>
             <p className="mt-1.5 text-[12.5px] text-ink-3">你的 AI 工作流指挥中心</p>
           </div>

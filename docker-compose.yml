@@ -1,4 +1,4 @@
-# ProjectHub AI - 核心服务编排（生产加固）
+# AI智序 - 核心服务编排（生产加固）
 # 用法：
 #   首次/更新：docker compose up -d --build
 #   全栈（含 Dify CE）：docker compose -f docker-compose.yml -f compose.dify.yml --profile dify up -d

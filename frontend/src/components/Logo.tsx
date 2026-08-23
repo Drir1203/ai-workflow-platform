@@ -22,7 +22,7 @@ export function Brand() {
     <div className="flex items-center gap-2.5">
       <Logo />
       <span className="text-[14px] font-semibold tracking-tight text-ink">
-        ProjectHub <span className="text-gold">AI</span>
+        AI <span className="text-gold">智序</span>
       </span>
     </div>
   )

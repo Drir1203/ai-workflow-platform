@@ -7,4 +7,4 @@ async def test_health(client):
 async def test_root(client):
     r = await client.get("/")
     assert r.status_code == 200
-    assert r.json()["service"] == "ProjectHub AI"
+    assert r.json()["service"] == "AI智序"
