@@ -11,7 +11,9 @@ WORKDIR /app
 # 先拷依赖文件，用缓存加速
 COPY package.json package-lock.json* ./
 # 有 package-lock.json 用 npm ci（更快更精确），否则用 npm install
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+# 国内服务器（阿里云 ECS）构建加速：npm registry 切换为 npmmirror 镜像。
+RUN npm config set registry https://registry.npmmirror.com \
+    && if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # 复制源码并构建。
 # VITE_API_BASE 默认空串 → 同源部署：浏览器走 /api 与 /health，由网关 nginx 反代后端。

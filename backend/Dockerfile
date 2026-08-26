@@ -10,13 +10,20 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
 
 # 编译 PostgreSQL 驱动需要 gcc + libpq-dev
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    curl \
+# 国内服务器（阿里云 ECS）构建加速：apt 源切换为阿里云镜像。
+# 海外部署时删除下面两行 sed 即可回到官方源。
+RUN sed -i 's|http://deb.debian.org/debian|http://mirrors.aliyun.com/debian|g' \
+        /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list 2>/dev/null || true \
+    && sed -i 's|http://security.debian.org/debian-security|http://mirrors.aliyun.com/debian-security|g' \
+        /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list 2>/dev/null || true \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+        libpq-dev \
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
 # 先拷 pyproject.toml + 应用代码再装依赖——利用 Docker 层缓存
