@@ -29,7 +29,7 @@ print_err()  { echo -e "  ${RED}✗${NC} $1"; }
 
 PROJECT_DIR="/opt/projecthub-ai"
 COMPOSE="docker compose"
-HEALTH_URL="http://127.0.0.1/health"
+HEALTH_URL="http://127.0.0.1:8080/health"   # 网关入口端口与 docker-compose.yml 保持一致
 
 # ════════════════════════════════════════════════════════════════
 # 第一步：环境检查
@@ -139,7 +139,7 @@ for service in postgres redis backend frontend nginx; do
 done
 
 # 校验业务 API 已被网关接管（未登录应返回 401 而非 404）
-API_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/api/projects 2>/dev/null || echo "000")
+API_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/api/projects 2>/dev/null || echo "000")
 if [ "$API_CODE" = "401" ]; then
     print_ok "网关 /api/ 已接管（401 未授权，符合预期）"
 else
@@ -149,7 +149,7 @@ fi
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}  AI智序 部署完成！${NC}"
-echo -e "${GREEN}  入口：http://服务器IP/ （HTTPS 按 DEPLOYMENT.md 启用）${NC}"
+echo -e "${GREEN}  入口：http://服务器IP:8080/ （HTTPS 按 DEPLOYMENT.md 启用）${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════${NC}"
 echo ""
 echo "常用命令："

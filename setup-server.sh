@@ -95,5 +95,5 @@ print_step "⑤ 构建并部署"
 bash "$PROJECT_DIR/cicd-deploy.sh"
 
 print_step "✅ 部署完成"
-print_info "验证：curl http://127.0.0.1/health"
-print_info "浏览器打开 http://服务器IP/（HTTP 有'不安全'提示，属预期）"
+print_info "验证：curl http://127.0.0.1:8080/health"
+print_info "浏览器打开 http://服务器IP:8080/（HTTP 有'不安全'提示，属预期）"

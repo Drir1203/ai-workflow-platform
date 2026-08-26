@@ -32,7 +32,8 @@
                      └──────────────────────────────┘
 ```
 
-- 所有端口仅绑定 `127.0.0.1`，对外只暴露 nginx 的 80/443。
+- 所有端口仅绑定 `127.0.0.1`，对外只暴露 nginx。
+- 与 crossborder-ai 同机共存时宿主机端口已偏移（见 docker-compose.yml）：nginx 80→8080、backend 8000→8001、postgres 5432→5433；容器内部端口与网关路由不变。
 - 后端容器启动入口自动执行 `alembic upgrade head`（迁移是**唯一**的建表事实源，无 `create_all`）。
 - 前端构建时 `VITE_API_BASE=""` → **同源部署**，浏览器直接打 `/api/*` 与 `/health`，由网关反代。
 - Dify CE 走独立 `compose.dify.yml` + `profiles: ["dify"]`，**默认不启动**；启用时后端经 `DIFY_API_URL=http://api:5001/v1` 服务名直连。
@@ -54,7 +55,7 @@
 ## 3. 前置条件
 
 - 阿里云 ECS（Ubuntu 22.04+ / Debian 12+，建议 ≥2C4G）
-- 安全组放行 80（后续 443）
+- 安全组放行 8080（与 crossborder-ai 同机时网关入口；独立部署则放行 80，后续 443）
 - 域名 A 记录指向 ECS 公网 IP（HTTPS 需要；纯 HTTP 可先跳过域名）
 - GitHub 私有仓库（含本仓库代码）+ CI secrets
 
@@ -85,8 +86,8 @@ nano .env
 # ④ 首次启动（backend entrypoint 会自动跑 alembic 迁移）
 docker compose up -d --build
 docker compose ps                         # 5 服务均 Up/healthy
-curl http://127.0.0.1/health             # → {"status":"ok",...}
-curl http://127.0.0.1/api/projects       # → 401（未授权，符合预期）
+curl http://127.0.0.1:8080/health        # → {"status":"ok",...}
+curl http://127.0.0.1:8080/api/projects  # → 401（未授权，符合预期）
 
 # ⑤ HTTPS（证书 + 启用网关 HTTPS 块）
 apt-get update && apt-get install -y certbot
