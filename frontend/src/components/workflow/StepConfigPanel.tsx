@@ -47,6 +47,9 @@ const selectCls =
 
 export function StepConfigPanel({ node, agents, projects, templates, onPatch, onSaveTemplate }: StepConfigPanelProps) {
   const agent = agents.find((a) => a.key === node?.data.agent_key)
+  // 参数摘要 label 化：参数 key → 中文名、项目 id → 项目名，让节点卡片对用户可读
+  const paramLabels = agent ? Object.fromEntries(agent.param_schema.map((p) => [p.name, p.label])) : undefined
+  const projectNames = Object.fromEntries(projects.map((p) => [p.id, p.name]))
   const [form, setForm] = useState<Record<string, string>>({})
   const [tplId, setTplId] = useState('')
   const [tplName, setTplName] = useState('')
@@ -60,8 +63,9 @@ export function StepConfigPanel({ node, agents, projects, templates, onPatch, on
 
   if (!node) {
     return (
-      <div className="flex h-full items-center justify-center p-6 text-center text-[12px] text-ink-4">
-        点击画布中的步骤节点配置参数
+      <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
+        <div className="text-[12px] text-ink-4">点击画布里的步骤卡片，</div>
+        <div className="text-[12px] text-ink-4">在这里配置它要做什么</div>
       </div>
     )
   }
@@ -71,7 +75,7 @@ export function StepConfigPanel({ node, agents, projects, templates, onPatch, on
     setForm(next)
     if (agent) {
       const params = collectParams(agent, next)
-      onPatch(node.id, { params, paramsSummary: summarizeParams(params) })
+      onPatch(node.id, { params, paramsSummary: summarizeParams(params, paramLabels, projectNames) })
     }
   }
 
@@ -82,7 +86,7 @@ export function StepConfigPanel({ node, agents, projects, templates, onPatch, on
     setForm(next)
     setTplId('')
     const params = collectParams(a, next)
-    onPatch(node.id, { agent_key: key, params, paramsSummary: summarizeParams(params) })
+    onPatch(node.id, { agent_key: key, params, paramsSummary: summarizeParams(params, paramLabels, projectNames) })
   }
 
   const changeLabel = (label: string) => onPatch(node.id, { label })
@@ -94,7 +98,7 @@ export function StepConfigPanel({ node, agents, projects, templates, onPatch, on
     if (!tpl || !agent) return
     const next = initialForm(agent, tpl.params)
     setForm(next)
-    onPatch(node.id, { params: tpl.params, paramsSummary: summarizeParams(tpl.params) })
+    onPatch(node.id, { params: tpl.params, paramsSummary: summarizeParams(tpl.params, paramLabels, projectNames) })
   }
 
   async function saveTemplate() {
@@ -114,19 +118,29 @@ export function StepConfigPanel({ node, agents, projects, templates, onPatch, on
     <div className="flex flex-col gap-4 p-4">
       <div className="flex flex-col gap-1.5">
         <label className="text-[12px] text-ink-3">步骤名</label>
-        <Input value={node.data.label} onChange={(e) => changeLabel(e.target.value)} placeholder="步骤名（可选）" />
+        <Input
+          value={node.data.label}
+          onChange={(e) => changeLabel(e.target.value)}
+          placeholder="给这一步起个名字，如「查项目进度」"
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-[12px] text-ink-3">智能体</label>
-        <select className={selectCls} value={node.data.agent_key} onChange={(e) => changeAgent(e.target.value)}>
-          <option value="">选择智能体…</option>
+        <label className="text-[12px] text-ink-3">AI 助手</label>
+        <select
+          className={selectCls}
+          value={node.data.agent_key}
+          onChange={(e) => changeAgent(e.target.value)}
+          title={agent?.description}
+        >
+          <option value="">选择要做什么…</option>
           {agents.map((a) => (
-            <option key={a.key} value={a.key}>
-              {a.name}（{a.key}）
+            <option key={a.key} value={a.key} title={a.description}>
+              {a.name}
             </option>
           ))}
         </select>
+        {agent?.description && <p className="text-[11px] leading-relaxed text-ink-4">{agent.description}</p>}
       </div>
 
       {agent && (
@@ -151,7 +165,10 @@ export function StepConfigPanel({ node, agents, projects, templates, onPatch, on
           )}
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-ink-3">参数</label>
+            <div className="flex flex-col gap-0.5">
+              <label className="text-[12px] text-ink-3">任务输入</label>
+              <p className="text-[11px] leading-relaxed text-ink-4">以下内容会作为任务描述交给 AI 助手</p>
+            </div>
             {agent.param_schema.map((p) => (
               <div key={p.name} className="flex flex-col gap-1.5">
                 <label className="text-[12px] text-ink-3">

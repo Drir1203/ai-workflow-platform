@@ -20,12 +20,14 @@ import {
   graphToSteps,
   newNodeId,
   stepsToGraph,
+  summarizeParams,
   wouldCreateCycle,
   type FlowEdge,
   type FlowNode,
   type WorkflowNodeData,
 } from '../../lib/workflowGraph'
 import type { AgentInfo, ParamTemplate, Project, WorkflowStep } from '../../types'
+import { Button } from '../ui/button'
 import { AgentStepNode, NodeIndexContext } from './AgentStepNode'
 import { StepConfigPanel } from './StepConfigPanel'
 
@@ -35,6 +37,8 @@ const nodeTypes = { agentStep: AgentStepNode }
 export interface WorkflowCanvasHandle {
   /** 线性化当前画布：成功返回 { steps }，失败返回 { error }（父级保存时调用） */
   linearize: () => { steps: WorkflowStep[] } | { error: string }
+  /** 用一组步骤重建画布（新建弹窗内「从模板开始」时调用） */
+  loadSteps: (steps: WorkflowStep[]) => void
 }
 
 interface WorkflowCanvasProps {
@@ -60,13 +64,25 @@ const WorkflowCanvasInner = forwardRef<WorkflowCanvasHandle, WorkflowCanvasProps
   const { screenToFlowPosition } = useReactFlow()
   const initRef = useRef(false)
 
-  // 初始化：ref 守卫防 StrictMode 双跑；只按初始步骤建一次图
+  // 参数摘要 label 化：key→中文参数名、项目 id→项目名，让节点卡片对非技术用户可读
+  const summarizeNode = useCallback(
+    (n: FlowNode) => {
+      const a = agents.find((x) => x.key === n.data.agent_key)
+      const labels = a ? Object.fromEntries(a.param_schema.map((p) => [p.name, p.label])) : undefined
+      const names = Object.fromEntries(projects.map((p) => [p.id, p.name]))
+      return summarizeParams(n.data.params, labels, names)
+    },
+    [agents, projects],
+  )
+
+  // 初始化：ref 守卫防 StrictMode 双跑；只按初始步骤建一次图；选中首节点便于引导配置
   useEffect(() => {
     if (initRef.current) return
     initRef.current = true
     const { nodes: n, edges: e } = stepsToGraph(initialSteps)
-    setNodes(n)
+    setNodes(n.map((x) => ({ ...x, data: { ...x.data, paramsSummary: summarizeNode(x) } })))
     setEdges(e)
+    setSelectedId(n[0]?.id ?? null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -177,10 +193,16 @@ const WorkflowCanvasInner = forwardRef<WorkflowCanvasHandle, WorkflowCanvasProps
     [edges, setEdges, onValidationError],
   )
 
-  // 暴露线性化方法给父级保存
+  // 暴露线性化 + 模板填充方法给父级（保存 / 「从模板开始」时调用）
   useImperativeHandle(ref, () => ({
     linearize: () => graphToSteps(nodes, edges),
-  }), [nodes, edges])
+    loadSteps: (steps: WorkflowStep[]) => {
+      const { nodes: n, edges: e } = stepsToGraph(steps)
+      setNodes(n.map((x) => ({ ...x, data: { ...x.data, paramsSummary: summarizeNode(x) } })))
+      setEdges(e)
+      setSelectedId(n[0]?.id ?? null)
+    },
+  }), [nodes, edges, summarizeNode])
 
   const selectedNode = nodes.find((n) => n.id === selectedId) ?? null
 
@@ -188,7 +210,8 @@ const WorkflowCanvasInner = forwardRef<WorkflowCanvasHandle, WorkflowCanvasProps
     <div className="flex h-full min-h-0 gap-2">
       {/* 左侧 palette：点击或拖拽追加节点 */}
       <div className="w-44 shrink-0 overflow-y-auto rounded-lg border border-line-soft bg-elev1 p-2">
-        <div className="mb-1.5 px-1 text-[11px] font-semibold text-ink-3">智能体</div>
+        <div className="mb-1.5 px-1 text-[11px] font-semibold text-ink-3">AI 助手</div>
+        <div className="mb-2 px-1 text-[10.5px] leading-snug text-ink-5">点击（或拖拽）添加一个步骤</div>
         {agents.map((a) => (
           <button
             key={a.key}
@@ -199,18 +222,18 @@ const WorkflowCanvasInner = forwardRef<WorkflowCanvasHandle, WorkflowCanvasProps
             }}
             onClick={() => appendNode(a.key)}
             className="mb-1 block w-full rounded-md border border-line-soft bg-bg px-2 py-1.5 text-left transition-colors hover:border-gold-primary/50 hover:bg-active"
-            title={`${a.description}\n点击或拖拽到画布`}
+            title={`${a.name}：${a.description}\n点击或拖拽到画布`}
           >
             <div className="truncate text-[12px] font-medium text-ink">{a.name}</div>
-            <div className="truncate font-mono text-[10px] text-ink-5">{a.key}</div>
+            <div className="truncate text-[10px] leading-snug text-ink-5">{a.description}</div>
           </button>
         ))}
-        {agents.length === 0 && <div className="px-1 text-[11px] text-ink-5">暂无智能体</div>}
+        {agents.length === 0 && <div className="px-1 text-[11px] text-ink-5">暂无 AI 助手</div>}
       </div>
 
       {/* 中间画布 */}
       <div
-        className="min-w-0 flex-1 rounded-lg border border-line-soft bg-elev1"
+        className="relative min-w-0 flex-1 rounded-lg border border-line-soft bg-elev1"
         onDrop={(e) => {
           e.preventDefault()
           const key = e.dataTransfer.getData('application/reactflow')
@@ -242,6 +265,34 @@ const WorkflowCanvasInner = forwardRef<WorkflowCanvasHandle, WorkflowCanvasProps
             <Controls />
           </ReactFlow>
         </NodeIndexContext.Provider>
+
+        {/* 空画布引导：告诉第一次用的用户接下来的三步操作，降低上手门槛 */}
+        {nodes.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
+            <div className="pointer-events-auto max-w-sm rounded-xl border border-line-soft bg-bg/95 p-5 text-center shadow-lg">
+              <div className="text-[13px] font-semibold text-ink">如何创建工作流？</div>
+              <div className="mt-3 space-y-2 text-left text-[12px] leading-relaxed text-ink-3">
+                <div className="flex gap-2">
+                  <span className="shrink-0 font-medium text-gold">①</span>
+                  从左侧「AI 助手」点一下，添加第一个步骤
+                </div>
+                <div className="flex gap-2">
+                  <span className="shrink-0 font-medium text-gold">②</span>
+                  点击画布里的步骤卡片，右侧配置它要做什么
+                </div>
+                <div className="flex gap-2">
+                  <span className="shrink-0 font-medium text-gold">③</span>
+                  点下方「创建」，工作流即可运行
+                </div>
+              </div>
+              {agents.length > 0 && (
+                <Button size="sm" className="mt-4" onClick={() => appendNode(agents[0].key)}>
+                  + 快速添加「{agents[0].name}」
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 右侧配置面板 */}

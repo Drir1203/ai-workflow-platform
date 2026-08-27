@@ -22,11 +22,24 @@ export type WorkflowNodeData = {
 export type FlowNode = Node<WorkflowNodeData, 'agentStep'>
 export type FlowEdge = Edge
 
-/** 参数摘要：键值对连接，超长截断，防撑破节点卡片 */
-export function summarizeParams(params: Record<string, unknown>, max = 40): string {
+/**
+ * 参数摘要：键值对连接，超长截断，防撑破节点卡片。
+ * labels / projectNames 可选：传入后把原始 key 换成中文参数名、把项目 id 换成项目名，
+ * 让画布节点上的摘要对非技术用户可读（如「项目=xxxx, 周期=本周」而非「project_id=p-1」）。
+ */
+export function summarizeParams(
+  params: Record<string, unknown>,
+  labels?: Record<string, string>,
+  projectNames?: Record<string, string>,
+  max = 40,
+): string {
   const parts = Object.entries(params)
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
-    .map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+    .map(([k, v]) => {
+      const label = labels?.[k] ?? k
+      if (projectNames && typeof v === 'string' && projectNames[v]) return `${label}=${projectNames[v]}`
+      return `${label}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`
+    })
   const joined = parts.join(', ')
   return joined.length > max ? joined.slice(0, max) + '…' : joined
 }

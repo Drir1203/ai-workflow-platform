@@ -6,6 +6,7 @@ import { Dialog } from '../components/ui/dialog'
 import { Empty } from '../components/ui/empty'
 import { Input, Textarea } from '../components/ui/input'
 import { WorkflowCanvas, type WorkflowCanvasHandle } from '../components/workflow/WorkflowCanvas'
+import { WORKFLOW_TEMPLATES } from '../lib/workflowTemplates'
 import type { DataLayer } from '../lib/view'
 import type { AgentInfo, ParamTemplate, Project, RunStatus, Schedule, Workflow, WorkflowRun } from '../types'
 
@@ -18,6 +19,32 @@ const statusLabel: Record<RunStatus, string> = {
   running: '执行中',
   succeeded: '成功',
   failed: '失败',
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+/** 白话时间 → cron：'09:30' → '30 9 * * *'；day 1-7(周一~周日) 表示每周那一天的几点 */
+function timeToCron(time: string, day?: string): string {
+  const [h, m] = time.split(':').map((x) => Number(x))
+  if (day !== undefined) {
+    const d = day === '7' ? '0' : day // cron 星期 0=周日
+    return `${m} ${h} * * ${d}`
+  }
+  return `${m} ${h} * * *`
+}
+
+/** cron → 白话模式：能识别「每天 HH:MM」「每周 星期 HH:MM」就回填，其余归为高级 */
+function cronToSimple(cron: string): { mode: 'daily' | 'weekly' | 'advanced'; time?: string; day?: string } {
+  const daily = cron.match(/^(\d{1,2}) (\d{1,2}) \* \* \*$/)
+  if (daily) return { mode: 'daily', time: `${pad2(Number(daily[2]))}:${pad2(Number(daily[1]))}` }
+  const weekly = cron.match(/^(\d{1,2}) (\d{1,2}) \* \* ([0-7])$/)
+  if (weekly) {
+    const day = weekly[3] === '0' ? '7' : weekly[3]
+    return { mode: 'weekly', time: `${pad2(Number(weekly[2]))}:${pad2(Number(weekly[1]))}`, day }
+  }
+  return { mode: 'advanced' }
 }
 
 function scheduleText(schedule: Workflow['schedule']): string | null {
@@ -40,11 +67,19 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
   const [editing, setEditing] = useState<Workflow | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [cron, setCron] = useState('')
-  const [intervalMinutes, setIntervalMinutes] = useState('')
   const [enabled, setEnabled] = useState(true)
   const [busy, setBusy] = useState(false)
   const canvasRef = useRef<WorkflowCanvasHandle>(null)
+
+  // 定时调度白话模式：none/interval/daily/weekly/advanced（cron 表达式折叠进「高级」）
+  const [schedMode, setSchedMode] = useState<'none' | 'interval' | 'daily' | 'weekly' | 'advanced'>('none')
+  const [intervalN, setIntervalN] = useState('15')
+  const [dailyTime, setDailyTime] = useState('09:00')
+  const [weeklyDay, setWeeklyDay] = useState('1')
+  const [weeklyTime, setWeeklyTime] = useState('09:00')
+  const [cronRaw, setCronRaw] = useState('')
+  // 新建时是否展示「从模板开始」：模板填充或改为空白后隐藏
+  const [showTemplates, setShowTemplates] = useState(true)
 
   const [runningId, setRunningId] = useState<string | null>(null)
   const [runResult, setRunResult] = useState<WorkflowRun | null>(null)
@@ -75,14 +110,19 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
     refresh()
   }, [refresh])
 
-  // 打开新建：清空表单
+  // 打开新建：清空表单；定时归「不设置」，展示模板选择
   const openCreate = () => {
     setEditing(null)
     setName('')
     setDescription('')
-    setCron('')
-    setIntervalMinutes('')
     setEnabled(true)
+    setSchedMode('none')
+    setIntervalN('15')
+    setDailyTime('09:00')
+    setWeeklyDay('1')
+    setWeeklyTime('09:00')
+    setCronRaw('')
+    setShowTemplates(true)
     setEditorOpen(true)
   }
 
@@ -91,9 +131,29 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
     setEditing(wf)
     setName(wf.name)
     setDescription(wf.description ?? '')
-    setCron(wf.schedule?.cron ?? '')
-    setIntervalMinutes(wf.schedule?.interval_minutes ? String(wf.schedule.interval_minutes) : '')
     setEnabled(wf.enabled)
+    setShowTemplates(false)
+    // schedule → 白话模式回填；识别不了的 cron 归「高级」原样显示
+    const sched = wf.schedule
+    if (sched?.interval_minutes) {
+      setSchedMode('interval')
+      setIntervalN(String(sched.interval_minutes))
+    } else if (sched?.cron) {
+      const parsed = cronToSimple(sched.cron)
+      if (parsed.mode === 'daily') {
+        setSchedMode('daily')
+        setDailyTime(parsed.time ?? '09:00')
+      } else if (parsed.mode === 'weekly') {
+        setSchedMode('weekly')
+        setWeeklyDay(parsed.day ?? '1')
+        setWeeklyTime(parsed.time ?? '09:00')
+      } else {
+        setSchedMode('advanced')
+        setCronRaw(sched.cron)
+      }
+    } else {
+      setSchedMode('none')
+    }
     setEditorOpen(true)
   }
 
@@ -106,12 +166,20 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
       setError(linear.error)
       return
     }
+    if (linear.steps.length === 0) {
+      setError('请先在画布添加至少一个 AI 助手步骤')
+      return
+    }
     setBusy(true)
     try {
+      // 白话定时 → Schedule（cron / interval）；「不设置」则无定时
       let schedule: Schedule | null = null
-      if (cron.trim()) schedule = { cron: cron.trim(), interval_minutes: null }
-      else if (intervalMinutes.trim() && Number(intervalMinutes) > 0)
-        schedule = { cron: null, interval_minutes: Number(intervalMinutes) }
+      if (schedMode === 'interval' && intervalN && Number(intervalN) > 0)
+        schedule = { cron: null, interval_minutes: Number(intervalN) }
+      else if (schedMode === 'daily') schedule = { cron: timeToCron(dailyTime), interval_minutes: null }
+      else if (schedMode === 'weekly') schedule = { cron: timeToCron(weeklyTime, weeklyDay), interval_minutes: null }
+      else if (schedMode === 'advanced' && cronRaw.trim())
+        schedule = { cron: cronRaw.trim(), interval_minutes: null }
       if (editing) {
         await layer.updateWorkflow(editing.id, {
           name: name.trim(),
@@ -199,6 +267,11 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
     }
   }
 
+  // 仅展示当前 AI 助手里已具备的模板（步骤引用到不存在的 agent_key 则整条模板不可用）
+  const availableTemplates = WORKFLOW_TEMPLATES.filter((t) =>
+    t.steps.every((s) => agents.some((a) => a.key === s.agent_key)),
+  )
+
   const agentName = (key: string) => agents.find((a) => a.key === key)?.name ?? key
 
   return (
@@ -206,7 +279,7 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[20px] font-[650] tracking-tight text-ink">工作流</h1>
-          <p className="mt-1 text-[12.5px] text-ink-3">拖拽画布编排多步 Agent · 上一步输出注入下一步 · 定时触发</p>
+          <p className="mt-1 text-[12.5px] text-ink-3">把多个 AI 助手串成一条流水线 · 上一步结果自动传给下一步 · 可定时运行</p>
         </div>
         <Button onClick={openCreate}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
@@ -380,28 +453,132 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
             </div>
           </div>
 
+          {/* 从模板开始：给第一次用的用户一键铺好步骤 */}
+          {showTemplates && availableTemplates.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] text-ink-3">从模板开始（点一下自动生成步骤）</label>
+              <div className="flex flex-wrap gap-2">
+                {availableTemplates.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      canvasRef.current?.loadSteps(t.steps)
+                      setShowTemplates(false)
+                    }}
+                    className="rounded-lg border border-line-soft bg-elev1 px-3 py-2 text-left transition-colors hover:border-gold-primary/50 hover:bg-active"
+                  >
+                    <div className="text-[12.5px] font-medium text-ink">{t.name}</div>
+                    <div className="mt-0.5 text-[11px] leading-snug text-ink-4">{t.desc}</div>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setShowTemplates(false)}
+                  className="rounded-lg border border-dashed border-line-soft px-3 py-2 text-left transition-colors hover:border-gold-primary/50 hover:bg-active"
+                >
+                  <div className="text-[12.5px] font-medium text-ink-3">从空白开始</div>
+                  <div className="mt-0.5 text-[11px] leading-snug text-ink-4">自己拖拽编排步骤</div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 定时运行白话化：cron 表达式折叠进「高级」 */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-ink-3">定时调度（可选，二选一）</label>
-            <div className="flex flex-wrap items-center gap-2">
-              <Input
-                value={cron}
-                onChange={(e) => setCron(e.target.value)}
-                placeholder="cron 表达式，如 0 9 * * 1"
-                className="w-48 font-mono text-[12px]"
-              />
-              <Input
-                type="number"
-                value={intervalMinutes}
-                onChange={(e) => setIntervalMinutes(e.target.value)}
-                placeholder="间隔分钟"
-                className="w-28 font-mono text-[12px]"
-              />
-              <span className="text-[11px] text-ink-4">分钟</span>
-              <label className="ml-auto flex cursor-pointer items-center gap-2 text-[12px] text-ink-3">
-                <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-                启用
+            <label className="text-[12px] text-ink-3">定时运行（可选）</label>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-3">
+                <input
+                  type="radio"
+                  className="accent-gold"
+                  checked={schedMode === 'none'}
+                  onChange={() => setSchedMode('none')}
+                />
+                不设置
+              </label>
+              <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-3">
+                <input
+                  type="radio"
+                  className="accent-gold"
+                  checked={schedMode === 'interval'}
+                  onChange={() => setSchedMode('interval')}
+                />
+                每
+                <input
+                  type="number"
+                  min={1}
+                  value={intervalN}
+                  onChange={(e) => setIntervalN(e.target.value)}
+                  className="h-7 w-16 rounded-lg border border-line-soft bg-elev1 px-2 font-mono text-[12px]"
+                />
+                分钟
+              </label>
+              <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-3">
+                <input
+                  type="radio"
+                  className="accent-gold"
+                  checked={schedMode === 'daily'}
+                  onChange={() => setSchedMode('daily')}
+                />
+                每天
+                <input
+                  type="time"
+                  value={dailyTime}
+                  onChange={(e) => setDailyTime(e.target.value)}
+                  className="h-7 rounded-lg border border-line-soft bg-elev1 px-2 font-mono text-[12px]"
+                />
+              </label>
+              <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-3">
+                <input
+                  type="radio"
+                  className="accent-gold"
+                  checked={schedMode === 'weekly'}
+                  onChange={() => setSchedMode('weekly')}
+                />
+                每周
+                <select
+                  value={weeklyDay}
+                  onChange={(e) => setWeeklyDay(e.target.value)}
+                  className="h-7 rounded-lg border border-line-soft bg-elev1 px-1 text-[12px]"
+                >
+                  {['周一', '周二', '周三', '周四', '周五', '周六', '周日'].map((d, i) => (
+                    <option key={i + 1} value={String(i + 1)}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="time"
+                  value={weeklyTime}
+                  onChange={(e) => setWeeklyTime(e.target.value)}
+                  className="h-7 rounded-lg border border-line-soft bg-elev1 px-2 font-mono text-[12px]"
+                />
               </label>
             </div>
+            <details className="text-[12px]">
+              <summary className="cursor-pointer text-ink-4 hover:text-ink-3">高级（cron 表达式）</summary>
+              <div className="mt-1.5 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={cronRaw}
+                  onChange={(e) => {
+                    setCronRaw(e.target.value)
+                    if (e.target.value) setSchedMode('advanced')
+                  }}
+                  placeholder="如 0 9 * * 1"
+                  className="h-8 w-48 rounded-lg border border-line-soft bg-elev1 px-2 font-mono text-[12px]"
+                />
+                <span className="text-[11px] text-ink-4">填了 cron 即按高级定时</span>
+              </div>
+            </details>
+            <label className="flex cursor-pointer items-center gap-2 text-[12px] text-ink-3">
+              <input
+                type="checkbox"
+                className="accent-gold"
+                checked={enabled}
+                onChange={(e) => setEnabled(e.target.checked)}
+              />
+              启用（保存后立即生效）
+            </label>
           </div>
 
           {/* 画布：固定高度防 React Flow 高度塌陷 */}
