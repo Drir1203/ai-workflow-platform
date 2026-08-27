@@ -32,6 +32,17 @@ export interface Note {
   updated_at: string
 }
 
+// Markdown 文档（与速记 notes 区分：正式产物，可预览渲染）
+export interface Doc {
+  id: string
+  project_id: string
+  title: string
+  content: string
+  doc_meta: unknown | null
+  created_at: string
+  updated_at: string
+}
+
 export interface User {
   id: string
   email: string
@@ -223,5 +234,15 @@ export type CopilotEvent =
   | { type: 'status'; message: string; agent?: CopilotAgentMeta; workflow?: CopilotWorkflowMeta }
   | { type: 'text'; delta: string }
   | { type: 'result'; kind: CopilotResultKind; data: Record<string, unknown> }
+  | { type: 'done' }
+  | { type: 'error'; code: string; message: string }
+
+// ---------- AI 写作（续写/润色/总结） ----------
+
+export type WritingOperation = 'continue' | 'polish' | 'summarize'
+
+// SSE 事件协议：与后端 writing/service.py 的 event_* 构造函数一一对应
+export type WritingEvent =
+  | { type: 'text'; delta: string }
   | { type: 'done' }
   | { type: 'error'; code: string; message: string }

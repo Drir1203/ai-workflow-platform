@@ -10,6 +10,7 @@ import { Card } from '../components/ui/card'
 import { Empty } from '../components/ui/empty'
 import { Input, Textarea } from '../components/ui/input'
 import type { Note, Project, Task } from '../types'
+import { DocTab } from './DocTab'
 import { KnowledgeTab } from './KnowledgeTab'
 
 export function ProjectPage({
@@ -40,7 +41,7 @@ export function ProjectPage({
   onDeleteProject: (id: string) => Promise<void>
 }) {
   const [showTaskForm, setShowTaskForm] = useState(false)
-  const [tab, setTab] = useState<'overview' | 'knowledge'>('overview')
+  const [tab, setTab] = useState<'overview' | 'knowledge' | 'docs'>('overview')
   const [taskTitle, setTaskTitle] = useState('')
   const [priority, setPriority] = useState('medium')
   const [noteTitle, setNoteTitle] = useState('')
@@ -150,6 +151,19 @@ export function ProjectPage({
         >
           知识库
         </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'docs'}
+          aria-controls="project-docs"
+          id="tab-docs"
+          onClick={() => setTab('docs')}
+          className={cn(
+            'relative -mb-px border-b-2 px-3 pb-2 pt-1 text-[13px] transition-colors',
+            tab === 'docs' ? 'border-gold text-gold' : 'border-transparent text-ink-3 hover:text-ink',
+          )}
+        >
+          文档
+        </button>
       </div>
 
       {tab === 'overview' ? (
@@ -247,9 +261,13 @@ export function ProjectPage({
           </Card>
           </section>
         </div>
-      ) : (
+      ) : tab === 'knowledge' ? (
         <div id="project-knowledge" role="tabpanel" aria-labelledby="tab-knowledge">
           <KnowledgeTab key={project.id} layer={layer} project={project} />
+        </div>
+      ) : (
+        <div id="project-docs" role="tabpanel" aria-labelledby="tab-docs">
+          <DocTab key={project.id} layer={layer} project={project} />
         </div>
       )}
     </div>

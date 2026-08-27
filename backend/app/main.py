@@ -8,6 +8,7 @@ from .api import (
     agents,
     ai,
     auth,
+    docs,
     health,
     knowledge,
     notes,
@@ -19,6 +20,7 @@ from .api import (
 )
 from .copilot.router import router as copilot_router
 from .config import settings
+from .writing.router import router as writing_router
 from .workflows.executor import workflow_run_manager
 from .workflows.scheduler import workflow_scheduler
 
@@ -50,8 +52,10 @@ app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(tasks.router)
 app.include_router(notes.router)
+app.include_router(docs.router)
 app.include_router(ai.router)
 app.include_router(copilot_router)
+app.include_router(writing_router)
 app.include_router(agents.router)
 app.include_router(param_templates.router)
 app.include_router(knowledge.router)

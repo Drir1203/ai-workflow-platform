@@ -70,3 +70,77 @@ body {
     transition-duration: .01ms !important;
   }
 }
+
+/* ===== Markdown 文档预览（DocEditor）===== */
+.md-body {
+  font-size: 13px;
+  line-height: 1.75;
+  color: rgb(var(--ink-2));
+  word-break: break-word;
+}
+.md-body > :first-child { margin-top: 0; }
+.md-body > :last-child { margin-bottom: 0; }
+.md-body h1,
+.md-body h2,
+.md-body h3,
+.md-body h4 {
+  margin: 1.4em 0 .5em;
+  color: rgb(var(--ink));
+  font-weight: 650;
+  line-height: 1.4;
+}
+.md-body h1 { font-size: 20px; border-bottom: 1px solid rgb(var(--border)); padding-bottom: .3em; }
+.md-body h2 { font-size: 16.5px; }
+.md-body h3 { font-size: 14.5px; }
+.md-body p { margin: .6em 0; }
+.md-body ul,
+.md-body ol { margin: .6em 0; padding-left: 1.5em; }
+.md-body ul { list-style: disc; }
+.md-body ol { list-style: decimal; }
+.md-body li { margin: .25em 0; }
+.md-body blockquote {
+  margin: .8em 0;
+  padding: .2em 0 .2em .9em;
+  border-left: 3px solid rgb(var(--gold-primary));
+  color: rgb(var(--ink-3));
+}
+.md-body pre {
+  margin: .8em 0;
+  padding: .8em 1em;
+  overflow-x: auto;
+  border-radius: 10px;
+  background: rgb(var(--bg-elev-2));
+  border: 1px solid rgb(var(--border));
+}
+.md-body code {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .9em;
+}
+.md-body :not(pre) > code {
+  background: rgb(var(--bg-elev-2));
+  border: 1px solid rgb(var(--border));
+  border-radius: 5px;
+  padding: .12em .35em;
+}
+.md-body pre code { background: transparent; border: 0; padding: 0; }
+.md-body table {
+  margin: .8em 0;
+  border-collapse: collapse;
+  width: 100%;
+  font-size: .95em;
+}
+.md-body th,
+.md-body td {
+  border: 1px solid rgb(var(--border));
+  padding: .45em .7em;
+  text-align: left;
+}
+.md-body th {
+  background: rgb(var(--bg-elev-1));
+  color: rgb(var(--ink));
+  font-weight: 600;
+}
+.md-body hr { margin: 1.2em 0; border: 0; border-top: 1px solid rgb(var(--border)); }
+.md-body a { color: rgb(var(--gold)); text-decoration: underline; text-underline-offset: 2px; }
+.md-body a:hover { color: rgb(var(--gold-primary)); }
+.md-body img { max-width: 100%; border-radius: 8px; }

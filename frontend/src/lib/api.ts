@@ -6,6 +6,7 @@ import type {
   CopilotEvent,
   CopilotMessage,
   CustomAgentRead,
+  Doc,
   KnowledgeDocument,
   KnowledgeResponse,
   Note,
@@ -19,6 +20,8 @@ import type {
   Workflow,
   WorkflowRun,
   WorkflowStep,
+  WritingEvent,
+  WritingOperation,
 } from '../types'
 import { BASE } from './mode'
 
@@ -134,6 +137,15 @@ export const api = {
   updateNote: (id: string, patch: Partial<Note>) =>
     request<Note>('PATCH', `/api/notes/${id}`, patch),
   deleteNote: (id: string) => request<void>('DELETE', `/api/notes/${id}`),
+  // ---------- Markdown 文档 ----------
+  listDocs: (projectId?: string) =>
+    request<Doc[]>('GET', `/api/docs${projectId ? `?project_id=${projectId}` : ''}`),
+  createDoc: (d: { project_id: string; title: string; content?: string }) =>
+    request<Doc>('POST', '/api/docs', d),
+  getDoc: (id: string) => request<Doc>('GET', `/api/docs/${id}`),
+  updateDoc: (id: string, patch: Partial<Doc>) =>
+    request<Doc>('PATCH', `/api/docs/${id}`, patch),
+  deleteDoc: (id: string) => request<void>('DELETE', `/api/docs/${id}`),
   chat: (query: string) => request<{ answer: string }>('POST', '/api/ai/chat', { query }),
   // ---------- Agent ----------
   listAgents: () => request<AgentInfo[]>('GET', '/api/agents'),
@@ -235,6 +247,55 @@ export const api = {
         if (!payload) continue
         try {
           yield JSON.parse(payload) as CopilotEvent
+        } catch {
+          /* 忽略无法解析的数据行 */
+        }
+      }
+    }
+  },
+  // ---------- AI 写作（续写/润色/总结）：SSE 流式 ----------
+  async *streamWriting(operation: WritingOperation, text: string): AsyncGenerator<WritingEvent> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const token = getToken()
+    if (token) headers.Authorization = `Bearer ${token}`
+    const res = await fetch(`${BASE}/api/writing`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ operation, text }),
+    })
+    if (res.status === 401) {
+      clearSession()
+      window.location.reload()
+      throw new ApiError(401, '登录已过期')
+    }
+    if (!res.ok) {
+      let detail = res.statusText
+      try {
+        const j = await res.json()
+        detail = j.detail ?? JSON.stringify(j)
+      } catch {
+        /* keep default */
+      }
+      throw new ApiError(res.status, String(detail))
+    }
+    const reader = res.body?.getReader()
+    if (!reader) return
+    const decoder = new TextDecoder()
+    let buffer = ''
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      // SSE 事件以空行分隔；逐块解析 data: 行，非 data 行（心跳等）忽略
+      const chunks = buffer.split('\n\n')
+      buffer = chunks.pop() ?? ''
+      for (const chunk of chunks) {
+        const line = chunk.split('\n').find((l) => l.startsWith('data:'))
+        if (!line) continue
+        const payload = line.slice(5).trim()
+        if (!payload) continue
+        try {
+          yield JSON.parse(payload) as WritingEvent
         } catch {
           /* 忽略无法解析的数据行 */
         }

@@ -1,6 +1,7 @@
 from .agent_run import AgentRun
 from .base import Base
 from .custom_agent import CustomAgent
+from .doc import Doc
 from .document import Document
 from .document_chunk import DocumentChunk
 from .note import Note
@@ -16,6 +17,7 @@ __all__ = [
     "AgentRun",
     "Base",
     "CustomAgent",
+    "Doc",
     "Document",
     "DocumentChunk",
     "Note",

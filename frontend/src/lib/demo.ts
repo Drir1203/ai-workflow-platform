@@ -9,6 +9,7 @@ import type {
   CustomAgentRead,
   KnowledgeDocument,
   KnowledgeResponse,
+  Doc,
   Note,
   Paginated,
   ParamTemplate,
@@ -19,6 +20,8 @@ import type {
   Workflow,
   WorkflowRun,
   WorkflowStep,
+  WritingEvent,
+  WritingOperation,
 } from '../types'
 
 const iso = (daysAgo: number, h = 10) => {
@@ -75,6 +78,13 @@ let notes: Note[] = [
   { id: 'n-5', project_id: 'p-4', title: '本周灵感', content: '把日常工作里的 AI 内容整理也接进知识库 RAG，减少重复查询。', created_at: iso(1), updated_at: iso(1) },
 ]
 
+// ---------- Markdown 文档（演示数据） ----------
+
+let docs: Doc[] = [
+  { id: 'do-1', project_id: 'p-1', title: '部署指南', content: '# 部署指南\n\n## 一键启动\n\n```bash\ndocker compose up -d\n```\n\n| 服务 | 端口 |\n| --- | --- |\n| Web | 8080 |\n| API | 8000 |\n', doc_meta: null, created_at: iso(6), updated_at: iso(1) },
+  { id: 'do-2', project_id: 'p-3', title: '设计规范摘要', content: '# 设计规范\n\n- **主色**：香槟金 `#D9A441`\n- **背景**：黑金旗舰\n\n> 以 DESIGN.md 为唯一风格事实源。\n', doc_meta: null, created_at: iso(4), updated_at: iso(2) },
+]
+
 // ---------- 知识库 RAG（演示数据） ----------
 
 let documents: KnowledgeDocument[] = [
@@ -98,10 +108,10 @@ let documents: KnowledgeDocument[] = [
 
 const delay = (ms = 180) => new Promise((r) => setTimeout(r, ms))
 let nid = 100
+let did = 100
 let tid = 100
 let rid = 100
 let wid = 100
-let did = 100
 let cid = 100
 let pti = 100
 
@@ -213,6 +223,13 @@ function chunkText(s: string, size = 12): string[] {
   return out.length ? out : ['…']
 }
 
+// AI 写作演示回复：按操作生成确定性的内容片段
+function demoWritingReply(operation: WritingOperation, text: string): string {
+  if (operation === 'continue') return '\n\n（续写）基于以上内容，建议下一步沉淀一份可复用的巡检 checklist，把数据源、校验口径与上报链路分别立项跟踪。'
+  if (operation === 'summarize') return '要点列表：\n- 核心结论一：已明确\n- 核心结论二：可落地\n- 后续动作：跟进验证'
+  return `润色结果：${text.trim()}`
+}
+
 function demoReply(q: string): string {
   const s = q.toLowerCase()
   if (s.includes('项目') || s.includes('project')) {
@@ -266,6 +283,7 @@ export const demoApi = {
     projects = projects.filter((p) => p.id !== id)
     tasks = tasks.filter((t) => t.project_id !== id)
     notes = notes.filter((n) => n.project_id !== id)
+    docs = docs.filter((d) => d.project_id !== id)
   },
   async listTasks(projectId?: string): Promise<Task[]> {
     await delay()
@@ -367,6 +385,45 @@ export const demoApi = {
     for (const chunk of chunkText(demoReply(lastUser))) {
       yield { type: 'text', delta: chunk }
       await delay(18)
+    }
+    yield { type: 'done' }
+  },
+  // ---------- Markdown 文档（演示数据） ----------
+  async listDocs(projectId?: string): Promise<Doc[]> {
+    await delay()
+    const list = projectId ? docs.filter((d) => d.project_id === projectId) : docs
+    return [...list]
+  },
+  async createDoc(d: { project_id: string; title: string; content?: string }): Promise<Doc> {
+    await delay()
+    const now = new Date().toISOString()
+    const doc: Doc = {
+      id: `do-${++did}`, project_id: d.project_id, title: d.title,
+      content: d.content ?? '', doc_meta: null, created_at: now, updated_at: now,
+    }
+    docs = [doc, ...docs]
+    return doc
+  },
+  async getDoc(id: string): Promise<Doc> {
+    await delay()
+    return docs.find((d) => d.id === id)!
+  },
+  async updateDoc(id: string, patch: Partial<Doc>): Promise<Doc> {
+    await delay()
+    docs = docs.map((d) => (d.id === id ? { ...d, ...patch, updated_at: new Date().toISOString() } : d))
+    return docs.find((d) => d.id === id)!
+  },
+  async deleteDoc(id: string): Promise<void> {
+    await delay()
+    docs = docs.filter((d) => d.id !== id)
+  },
+  // ---------- AI 写作（续写/润色/总结）：演示模式模拟事件流 ----------
+  async *streamWriting(operation: WritingOperation, text: string): AsyncGenerator<WritingEvent> {
+    await delay(260)
+    const reply = demoWritingReply(operation, text)
+    for (const chunk of chunkText(reply)) {
+      yield { type: 'text', delta: chunk }
+      await delay(24)
     }
     yield { type: 'done' }
   },

@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_db
+from ..models.doc import Doc
 from ..models.project import Project
 from ..models.user import User
 from ..schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
@@ -69,5 +70,7 @@ async def delete_project(
     project_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ) -> None:
     project = await _get_owned_project(db, user, project_id)
+    # SQLite 不强制外键级联，应用层显式清理文档，防孤儿数据（tasks/notes 级联后做）
+    await db.execute(delete(Doc).where(Doc.project_id == project_id))
     await db.delete(project)
     await db.commit()
