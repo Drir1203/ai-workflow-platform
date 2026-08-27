@@ -4,6 +4,8 @@ import type {
   AgentRun,
   AgentSource,
   AuthResponse,
+  CopilotEvent,
+  CopilotMessage,
   CustomAgentRead,
   KnowledgeDocument,
   KnowledgeResponse,
@@ -204,6 +206,13 @@ function stubAgentOutput(agentKey: string, params: Record<string, unknown>): str
   }
 }
 
+// 按固定长度切块，模拟流式打字机增量
+function chunkText(s: string, size = 12): string[] {
+  const out: string[] = []
+  for (let i = 0; i < s.length; i += size) out.push(s.slice(i, i + size))
+  return out.length ? out : ['…']
+}
+
 function demoReply(q: string): string {
   const s = q.toLowerCase()
   if (s.includes('项目') || s.includes('project')) {
@@ -310,6 +319,56 @@ export const demoApi = {
   async chat(query: string): Promise<{ answer: string }> {
     await delay(420)
     return { answer: demoReply(query) }
+  },
+  // ---------- AI 副驾（Copilot）：演示模式模拟事件流 ----------
+  async *streamCopilot(messages: CopilotMessage[], projectId?: string): AsyncGenerator<CopilotEvent> {
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user')?.content ?? ''
+    await delay(200)
+    const s = lastUser.toLowerCase()
+    // 内置智能体子流程：status → 逐字流式 → result → done
+    const runBuiltin = async function* (
+      key: string,
+      name: string,
+      params: Record<string, unknown>,
+    ): AsyncGenerator<CopilotEvent, void, void> {
+      yield { type: 'status', message: `正在运行智能体「${name}」`, agent: { key, name } }
+      await delay(220)
+      const output = stubAgentOutput(key, params)
+      for (const chunk of chunkText(output)) {
+        yield { type: 'text' as const, delta: chunk }
+        await delay(16)
+      }
+      yield { type: 'result' as const, kind: 'agent', data: { agent_key: key, name, run_id: `ar-${++rid}`, output } }
+      yield { type: 'done' as const }
+    }
+    if (s.includes('周报')) {
+      yield* runBuiltin('weekly_report', '周报生成', { period: 'this_week' })
+      return
+    }
+    if (s.includes('巡检')) {
+      yield* runBuiltin('inspection_report', '巡检报告', {})
+      return
+    }
+    if (s.includes('押题')) {
+      yield* runBuiltin('interview_questions', '押题生成', { topic: 'AI 面试', count: 10 })
+      return
+    }
+    if (s.includes('创建') || s.includes('建个') || s.includes('建一')) {
+      yield { type: 'status', message: '已创建任务「AI 副驾演示任务」' }
+      await delay(160)
+      yield {
+        type: 'result', kind: 'task',
+        data: { id: `t-${++tid}`, title: 'AI 副驾演示任务', project_id: projectId ?? 'p-1', project_name: 'CrossBorder AI', priority: 'high' },
+      }
+      yield { type: 'done' }
+      return
+    }
+    // 兜底：普通问答流式输出
+    for (const chunk of chunkText(demoReply(lastUser))) {
+      yield { type: 'text', delta: chunk }
+      await delay(18)
+    }
+    yield { type: 'done' }
   },
   // ---------- Agent（演示数据） ----------
   async listAgents(): Promise<AgentInfo[]> {

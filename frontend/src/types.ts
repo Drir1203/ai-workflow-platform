@@ -198,3 +198,30 @@ export interface ScanResult {
   imported: number
   skipped: string[]
 }
+
+// ---------- AI 副驾（Copilot） ----------
+
+export interface CopilotMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface CopilotAgentMeta {
+  key: string
+  name: string
+}
+
+export interface CopilotWorkflowMeta {
+  id: string
+  name: string
+}
+
+export type CopilotResultKind = 'agent' | 'workflow' | 'task' | 'project' | 'knowledge'
+
+// SSE 事件协议：与后端 copilot/service.py 的 event_* 构造函数一一对应
+export type CopilotEvent =
+  | { type: 'status'; message: string; agent?: CopilotAgentMeta; workflow?: CopilotWorkflowMeta }
+  | { type: 'text'; delta: string }
+  | { type: 'result'; kind: CopilotResultKind; data: Record<string, unknown> }
+  | { type: 'done' }
+  | { type: 'error'; code: string; message: string }

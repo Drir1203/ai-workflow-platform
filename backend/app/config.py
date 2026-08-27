@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     rag_chunk_chars: int = 600
     rag_scan_extensions: list[str] = ["md", "txt", "markdown"]
     rag_max_upload_mb: int = 10
+    # AI 对话副驾（Copilot）
+    copilot_max_history: int = 6  # 意图路由/流式回答保留的对话历史条数
+    copilot_agent_timeout: float = 90  # 副驾内运行智能体的总超时（秒），单次 LLM 缺口 <120s
+    copilot_stream_read_timeout: float = 60  # 流式读取「字节间隔」超时（秒），非总时长
     # 限流（进程内滑动窗口，按来源 IP + scope，单 worker 部署有效）
     ratelimit_enabled: bool = True
     ratelimit_auth_per_min: int = 10  # 登录/注册，防爆破

@@ -112,3 +112,108 @@ async def test_openai_compatible_malformed_payload_returns_empty(monkeypatch):
         base_url="https://api.deepseek.com", api_key="sk-test", model="m"
     )
     assert await engine.knowledge_query("部署流程是什么") == ""
+
+
+# ── stream_chat（SSE 流式）──────────────
+
+class _FakeSSEStream:
+    """模拟 client.stream() 返回的响应：raise_for_status + aiter_lines。"""
+
+    def __init__(self, lines):
+        self._lines = lines
+
+    def raise_for_status(self):
+        return None
+
+    async def aiter_lines(self):
+        for l in self._lines:
+            yield l
+
+
+class _FakeStreamCtx:
+    def __init__(self, stream):
+        self._stream = stream
+
+    async def __aenter__(self):
+        return self._stream
+
+    async def __aexit__(self, *a):
+        return False
+
+
+class _FakeStreamClient:
+    """替换 httpx.AsyncClient：只实现 stream()，记录请求并返回假 SSE 行。"""
+
+    def __init__(self, lines):
+        self._lines = lines
+        self.sent = None
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+    def stream(self, method, url, json=None, headers=None):
+        self.sent = (method, url, json, headers)
+        return _FakeStreamCtx(_FakeSSEStream(self._lines))
+
+
+async def test_openai_stream_chat_parses_deltas(monkeypatch):
+    lines = [
+        'data: {"choices":[{"delta":{"content":"你"}}]}',
+        'data: {"choices":[{"delta":{"content":"好"}}]}',
+        'data: {"choices":[{"delta":{}}]}',
+        "data: [DONE]",
+    ]
+    fake = _FakeStreamClient(lines)
+    monkeypatch.setattr(httpx, "AsyncClient", lambda *a, **k: fake)
+    engine = OpenAICompatibleEngine(
+        base_url="https://api.deepseek.com", api_key="sk-test", model="deepseek-chat"
+    )
+    chunks = [
+        c
+        async for c in engine.stream_chat([{"role": "user", "content": "hi"}], user="u1")
+    ]
+    assert chunks == ["你", "好"]
+    assert fake.sent[1] == "https://api.deepseek.com/chat/completions"
+    assert fake.sent[2]["stream"] is True
+    assert fake.sent[2]["messages"] == [{"role": "user", "content": "hi"}]
+
+
+async def test_openai_stream_chat_missing_key_raises(monkeypatch):
+    # 显式置空 settings，避免本地 .env 里的真实 key 通过构造函数回退覆盖
+    monkeypatch.setattr(settings, "openai_compatible_api_key", "")
+    engine = OpenAICompatibleEngine(base_url="https://x", api_key="", model="m")
+    with pytest.raises(AiEngineUnavailable):
+        async for _ in engine.stream_chat([{"role": "user", "content": "hi"}]):
+            pass
+
+
+async def test_dify_stream_chat_parses_events(monkeypatch):
+    lines = [
+        'data: {"event":"message","answer":"A"}',
+        'data: {"event":"message","answer":"B"}',
+        'data: {"event":"message_end"}',
+        'data: {"event":"message","answer":"IGNORED"}',  # message_end 后不再产出
+    ]
+    fake = _FakeStreamClient(lines)
+    monkeypatch.setattr(httpx, "AsyncClient", lambda *a, **k: fake)
+    engine = DifyEngine(api_url="https://dify.example.com/v1", api_key="sk-test")
+    chunks = [
+        c async for c in engine.stream_chat([{"role": "user", "content": "hi"}], user="u1")
+    ]
+    assert chunks == ["A", "B"]
+    assert fake.sent[1] == "https://dify.example.com/v1/chat-messages"
+    assert fake.sent[2]["response_mode"] == "streaming"
+    assert fake.sent[2]["query"] == "hi"
+
+
+async def test_dify_stream_chat_error_event_raises(monkeypatch):
+    lines = ['data: {"event":"error","message":"boom"}']
+    fake = _FakeStreamClient(lines)
+    monkeypatch.setattr(httpx, "AsyncClient", lambda *a, **k: fake)
+    engine = DifyEngine(api_url="https://dify.example.com/v1", api_key="sk-test")
+    with pytest.raises(AiEngineUnavailable):
+        async for _ in engine.stream_chat([{"role": "user", "content": "hi"}], user="u1"):
+            pass

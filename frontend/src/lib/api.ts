@@ -3,6 +3,8 @@ import type {
   AgentParam,
   AgentRun,
   AuthResponse,
+  CopilotEvent,
+  CopilotMessage,
   CustomAgentRead,
   KnowledgeDocument,
   KnowledgeResponse,
@@ -190,4 +192,53 @@ export const api = {
     request<ScanResult>('POST', `/api/projects/${projectId}/documents/scan`),
   queryKnowledge: (projectId: string, query: string) =>
     request<KnowledgeResponse>('POST', `/api/projects/${projectId}/knowledge`, { query }),
+  // ---------- AI 副驾（Copilot）：SSE 流式对话 ----------
+  async *streamCopilot(messages: CopilotMessage[], projectId?: string): AsyncGenerator<CopilotEvent> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const token = getToken()
+    if (token) headers.Authorization = `Bearer ${token}`
+    const res = await fetch(`${BASE}/api/copilot/chat`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ messages, project_id: projectId ?? null }),
+    })
+    if (res.status === 401) {
+      clearSession()
+      window.location.reload()
+      throw new ApiError(401, '登录已过期')
+    }
+    if (!res.ok) {
+      let detail = res.statusText
+      try {
+        const j = await res.json()
+        detail = j.detail ?? JSON.stringify(j)
+      } catch {
+        /* keep default */
+      }
+      throw new ApiError(res.status, String(detail))
+    }
+    const reader = res.body?.getReader()
+    if (!reader) return
+    const decoder = new TextDecoder()
+    let buffer = ''
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      // SSE 事件以空行分隔；逐块解析 data: 行，非 data 行（心跳等）忽略
+      const chunks = buffer.split('\n\n')
+      buffer = chunks.pop() ?? ''
+      for (const chunk of chunks) {
+        const line = chunk.split('\n').find((l) => l.startsWith('data:'))
+        if (!line) continue
+        const payload = line.slice(5).trim()
+        if (!payload) continue
+        try {
+          yield JSON.parse(payload) as CopilotEvent
+        } catch {
+          /* 忽略无法解析的数据行 */
+        }
+      }
+    }
+  },
 }
