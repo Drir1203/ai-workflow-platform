@@ -7,7 +7,7 @@ from ..models.doc import Doc
 from ..models.project import Project
 from ..models.user import User
 from ..schemas.doc import DocCreate, DocRead, DocUpdate
-from .deps import get_current_user
+from .deps import get_current_user, require_role
 
 router = APIRouter(prefix="/api/docs", tags=["docs"])
 
@@ -46,7 +46,7 @@ async def list_docs(
 async def create_doc(
     payload: DocCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> Doc:
     await _get_owned_project(db, user, payload.project_id)
     # 归属：租户随创建者注入，隔离不落空
@@ -69,7 +69,7 @@ async def update_doc(
     doc_id: str,
     payload: DocUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> Doc:
     doc = await _get_owned_doc(db, user, doc_id)
     for field, value in payload.model_dump(exclude_unset=True).items():
@@ -81,7 +81,7 @@ async def update_doc(
 
 @router.delete("/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_doc(
-    doc_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+    doc_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_role("owner", "member"))
 ) -> None:
     doc = await _get_owned_doc(db, user, doc_id)
     await db.delete(doc)

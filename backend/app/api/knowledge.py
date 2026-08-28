@@ -25,7 +25,7 @@ from ..schemas.document import (
     KnowledgeSource,
     ScanResult,
 )
-from .deps import get_current_user
+from .deps import get_current_user, require_role
 
 router = APIRouter(prefix="/api/projects/{project_id}", tags=["knowledge"])
 
@@ -99,7 +99,7 @@ async def upload_document(
     file: UploadFile = File(...),
     _rl: None = Depends(_upload_limit),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> Document:
     project = await _get_project_or_404(db, project_id, user)
     data = await file.read()
@@ -211,7 +211,7 @@ async def delete_document(
     project_id: str,
     document_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> None:
     await _get_project_or_404(db, project_id, user)
     doc = await db.get(Document, document_id)

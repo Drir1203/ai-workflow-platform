@@ -70,8 +70,8 @@ export function Sidebar({
         ))}
       </div>
       <div className="mt-auto flex flex-col gap-1">
-        <SideItem disabled>
-          <SettingsIcon /> 设置
+        <SideItem active={view.name === 'team'} onClick={() => onSelect({ name: 'team' })}>
+          <SettingsIcon /> 团队
         </SideItem>
       </div>
     </aside>

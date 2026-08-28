@@ -7,7 +7,7 @@ from ..models.doc import Doc
 from ..models.project import Project
 from ..models.user import User
 from ..schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
-from .deps import get_current_user
+from .deps import get_current_user, require_role
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -33,7 +33,7 @@ async def list_projects(
 
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
 async def create_project(
-    payload: ProjectCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+    payload: ProjectCreate, db: AsyncSession = Depends(get_db), user: User = Depends(require_role("owner", "member"))
 ) -> Project:
     # 归属：租户随创建者注入，避免落到默认 "default" 租户导致隔离失效
     project = Project(**payload.model_dump(), tenant_id=user.tenant_id)
@@ -55,7 +55,7 @@ async def update_project(
     project_id: str,
     payload: ProjectUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> Project:
     project = await _get_owned_project(db, user, project_id)
     for field, value in payload.model_dump(exclude_unset=True).items():
@@ -67,7 +67,7 @@ async def update_project(
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_project(
-    project_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+    project_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_role("owner", "member"))
 ) -> None:
     project = await _get_owned_project(db, user, project_id)
     # SQLite 不强制外键级联，应用层显式清理文档，防孤儿数据（tasks/notes 级联后做）

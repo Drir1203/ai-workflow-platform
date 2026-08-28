@@ -15,6 +15,7 @@ from .api import (
     param_templates,
     projects,
     tasks,
+    team,
     wechat,
     workflows,
 )
@@ -53,6 +54,7 @@ app.include_router(projects.router)
 app.include_router(tasks.router)
 app.include_router(notes.router)
 app.include_router(docs.router)
+app.include_router(team.router)
 app.include_router(ai.router)
 app.include_router(copilot_router)
 app.include_router(writing_router)

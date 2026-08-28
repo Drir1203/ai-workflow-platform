@@ -7,6 +7,7 @@ import type {
   CopilotEvent,
   CopilotMessage,
   CustomAgentRead,
+  InviteResult,
   KnowledgeDocument,
   KnowledgeResponse,
   Doc,
@@ -17,6 +18,8 @@ import type {
   ScanResult,
   Schedule,
   Task,
+  TeamMember,
+  User,
   Workflow,
   WorkflowRun,
   WorkflowStep,
@@ -244,6 +247,13 @@ function demoReply(q: string): string {
   return '我已接入工作区数据。可以问我项目进度、任务待办、部署状态或任意 AI 相关问题——生产环境由 Dify 引擎回答，当前为演示数据。'
 }
 
+// 团队演示数据：owner（demo 用户）+ 一个 member，展示角色标签与邀请能力
+let demoMembers: TeamMember[] = [
+  { id: 'demo-user', email: 'demo@example.com', name: '演示用户', role: 'owner', created_at: iso(30) },
+  { id: 'm-2', email: 'lin@example.com', name: '林', role: 'member', created_at: iso(20) },
+]
+let demoInvites: { code: string; email: string; role: string }[] = []
+
 export const demoApi = {
   // ---------- 认证（演示模式直接放行；补全 api ⇄ demoApi 镜像，保证 DataLayer 不变量成立） ----------
   login: async (email: string, _password: string): Promise<AuthResponse> => {
@@ -251,16 +261,51 @@ export const demoApi = {
     return {
       access_token: 'demo-token',
       token_type: 'bearer',
-      user: { id: 'demo-user', email, name: email.split('@')[0] || '演示用户', created_at: new Date().toISOString() },
+      user: { id: 'demo-user', email, name: email.split('@')[0] || '演示用户', role: 'owner', created_at: new Date().toISOString() },
     }
   },
-  register: async (email: string, _password: string, name: string): Promise<AuthResponse> => {
+  register: async (email: string, _password: string, name: string, inviteCode?: string): Promise<AuthResponse> => {
     await delay()
+    let role = 'owner'
+    if (inviteCode) {
+      const inv = demoInvites.find((i) => i.code === inviteCode && i.email === email)
+      if (!inv) throw new Error('邀请码无效或已过期')
+      role = inv.role
+    }
     return {
       access_token: 'demo-token',
       token_type: 'bearer',
-      user: { id: 'demo-user', email, name, created_at: new Date().toISOString() },
+      user: { id: 'demo-user', email, name, role, created_at: new Date().toISOString() },
     }
+  },
+  // ---------- 团队管理（演示内存态；与 api.ts 签名镜像） ----------
+  async listTeamMembers(): Promise<TeamMember[]> {
+    await delay()
+    return [...demoMembers]
+  },
+  async createInvite(email: string, role: 'member' | 'readonly'): Promise<InviteResult> {
+    await delay()
+    const code = `demo-${Math.random().toString(36).slice(2, 10)}`
+    demoInvites = [...demoInvites, { code, email, role }]
+    return { code, invite_url: `/register?invite_code=${code}` }
+  },
+  async acceptInvite(code: string): Promise<User> {
+    await delay()
+    const inv = demoInvites.find((i) => i.code === code)
+    if (!inv) throw new Error('邀请码无效或已过期')
+    return { id: 'demo-user', email: inv.email, name: inv.email.split('@')[0] || '演示用户', role: inv.role, created_at: new Date().toISOString() }
+  },
+  async updateMemberRole(userId: string, role: string): Promise<TeamMember> {
+    await delay()
+    const member = demoMembers.find((m) => m.id === userId)
+    if (!member) throw new Error('member not found')
+    const updated = { ...member, role }
+    demoMembers = demoMembers.map((m) => (m.id === userId ? updated : m))
+    return updated
+  },
+  async removeMember(userId: string): Promise<void> {
+    await delay()
+    demoMembers = demoMembers.filter((m) => m.id !== userId)
   },
   async listProjects(): Promise<Project[]> {
     await delay()

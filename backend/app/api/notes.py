@@ -7,7 +7,7 @@ from ..models.note import Note
 from ..models.project import Project
 from ..models.user import User
 from ..schemas.note import NoteCreate, NoteRead, NoteUpdate
-from .deps import get_current_user
+from .deps import get_current_user, require_role
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
 
@@ -46,7 +46,7 @@ async def list_notes(
 async def create_note(
     payload: NoteCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> Note:
     await _get_owned_project(db, user, payload.project_id)
     # 归属：租户随创建者注入，隔离不落空
@@ -69,7 +69,7 @@ async def update_note(
     note_id: str,
     payload: NoteUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> Note:
     note = await _get_owned_note(db, user, note_id)
     for field, value in payload.model_dump(exclude_unset=True).items():
@@ -81,7 +81,7 @@ async def update_note(
 
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_note(
-    note_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+    note_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_role("owner", "member"))
 ) -> None:
     note = await _get_owned_note(db, user, note_id)
     await db.delete(note)

@@ -14,3 +14,5 @@ class User(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(128))
     name: Mapped[str] = mapped_column(String(60))
+    # 租户级角色：owner(注册默认) / member / readonly；团队成员共享同一 tenant_id，据此做写权限拦截
+    role: Mapped[str] = mapped_column(String(20), default="owner")

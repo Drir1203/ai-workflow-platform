@@ -3,6 +3,7 @@ export type View =
   | { name: 'project'; id: string }
   | { name: 'agents' }
   | { name: 'workflows' }
+  | { name: 'team' }
 
 import type { demoApi } from './demo'
 

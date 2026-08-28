@@ -4,6 +4,7 @@ from .custom_agent import CustomAgent
 from .doc import Doc
 from .document import Document
 from .document_chunk import DocumentChunk
+from .invite import Invite
 from .note import Note
 from .param_template import ParamTemplate
 from .project import Project
@@ -20,6 +21,7 @@ __all__ = [
     "Doc",
     "Document",
     "DocumentChunk",
+    "Invite",
     "Note",
     "ParamTemplate",
     "Project",

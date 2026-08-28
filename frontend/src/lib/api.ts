@@ -7,6 +7,7 @@ import type {
   CopilotMessage,
   CustomAgentRead,
   Doc,
+  InviteResult,
   KnowledgeDocument,
   KnowledgeResponse,
   Note,
@@ -16,6 +17,7 @@ import type {
   ScanResult,
   Schedule,
   Task,
+  TeamMember,
   User,
   Workflow,
   WorkflowRun,
@@ -117,8 +119,21 @@ async function upload<T>(path: string, file: File): Promise<T> {
 export const api = {
   login: (email: string, password: string) =>
     request<AuthResponse>('POST', '/api/auth/login', { email, password }),
-  register: (email: string, password: string, name: string) =>
-    request<AuthResponse>('POST', '/api/auth/register', { email, password, name }),
+  register: (email: string, password: string, name: string, inviteCode?: string) =>
+    request<AuthResponse>('POST', '/api/auth/register', {
+      email,
+      password,
+      name,
+      ...(inviteCode ? { invite_code: inviteCode } : {}),
+    }),
+  // ---------- 团队管理 ----------
+  listTeamMembers: () => request<TeamMember[]>('GET', '/api/team/members'),
+  createInvite: (email: string, role: 'member' | 'readonly') =>
+    request<InviteResult>('POST', '/api/team/invites', { email, role }),
+  acceptInvite: (code: string) => request<User>('POST', '/api/team/invites/accept', { code }),
+  updateMemberRole: (userId: string, role: string) =>
+    request<TeamMember>('PATCH', `/api/team/members/${userId}`, { role }),
+  removeMember: (userId: string) => request<void>('DELETE', `/api/team/members/${userId}`),
   listProjects: () => request<Project[]>('GET', '/api/projects'),
   createProject: (p: { name: string; description?: string; repo_url?: string; deploy_url?: string; local_path?: string }) =>
     request<Project>('POST', '/api/projects', p),

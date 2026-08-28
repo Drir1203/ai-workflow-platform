@@ -7,7 +7,7 @@ from ..models.project import Project
 from ..models.task import Task
 from ..models.user import User
 from ..schemas.task import TaskCreate, TaskRead, TaskUpdate
-from .deps import get_current_user
+from .deps import get_current_user, require_role
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -46,7 +46,7 @@ async def list_tasks(
 async def create_task(
     payload: TaskCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> Task:
     await _get_owned_project(db, user, payload.project_id)
     # 归属：租户随创建者注入，隔离不落空
@@ -69,7 +69,7 @@ async def update_task(
     task_id: str,
     payload: TaskUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> Task:
     task = await _get_owned_task(db, user, task_id)
     for field, value in payload.model_dump(exclude_unset=True).items():
@@ -81,7 +81,7 @@ async def update_task(
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(
-    task_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+    task_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_role("owner", "member"))
 ) -> None:
     task = await _get_owned_task(db, user, task_id)
     await db.delete(task)

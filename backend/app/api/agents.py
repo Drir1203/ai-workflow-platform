@@ -27,7 +27,7 @@ from ..schemas.agent import (
     CustomAgentUpdate,
     Paginated,
 )
-from .deps import get_current_user
+from .deps import get_current_user, require_role
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -85,7 +85,7 @@ async def list_agents(
 async def create_custom_agent(
     payload: CustomAgentCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> CustomAgent:
     """创建自定义 Agent：key 自动生成 custom-<hex8> 并查重，全局唯一。"""
     for _ in range(5):
@@ -120,7 +120,7 @@ async def update_custom_agent(
     agent_key: str,
     payload: CustomAgentUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> CustomAgent:
     """更新自定义 Agent（仅本人）：None 字段不修改。"""
     agent = await _get_custom_or_404(db, agent_key, user)
@@ -141,7 +141,7 @@ async def update_custom_agent(
 async def delete_custom_agent(
     agent_key: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> None:
     """删除自定义 Agent（仅本人）。"""
     agent = await _get_custom_or_404(db, agent_key, user)
@@ -201,7 +201,7 @@ async def run_agent(
     payload: AgentRunRequest,
     _rl: None = Depends(_run_limit),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> AgentRunCreated:
     ensure_registered()
     # 内置 + 自定义 Agent 统一解析；后台执行（runner）也有同样兜底

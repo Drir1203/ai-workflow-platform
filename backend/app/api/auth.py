@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,6 +11,7 @@ from ..core.security import create_access_token, hash_password, verify_password
 from ..db import get_db
 from ..models.user import User
 from ..schemas.user import LoginRequest, RegisterRequest, TokenResponse, UserRead
+from .deps import resolve_invite
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -27,14 +29,22 @@ async def register(
     result = await db.execute(select(User).where(User.email == payload.email))
     if result.scalar_one_or_none() is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email already registered")
-    # 每用户分配独立私有租户（数据隔离 R17）：用户注册后其全部数据
+    # 每用户默认分配独立私有租户（数据隔离 R17）：用户注册后其全部数据
     # 挂在独有 tenant_id 下，projects/tasks/notes 等按该值过滤，天然互不可见。
-    # 后续团队共享能力 = 把成员加进同一租户，无需改表结构。
+    # 携带团队邀请码时改为进入邀请方的共享租户并继承其角色（团队共享能力入口）。
+    tenant_id, role = str(uuid4()), "owner"
+    if payload.invite_code:
+        invite = await resolve_invite(db, payload.invite_code, payload.email)
+        if invite is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邀请码无效或已过期")
+        tenant_id, role = invite.tenant_id, invite.role
+        invite.used_at = datetime.now(timezone.utc)
     user = User(
         email=payload.email,
         password_hash=hash_password(payload.password),
         name=payload.name,
-        tenant_id=str(uuid4()),
+        tenant_id=tenant_id,
+        role=role,
     )
     db.add(user)
     await db.commit()

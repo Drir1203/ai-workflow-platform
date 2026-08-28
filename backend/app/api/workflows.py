@@ -20,7 +20,7 @@ from ..schemas.workflow import (
 )
 from ..workflows.executor import workflow_run_manager
 from ..workflows.scheduler import workflow_scheduler
-from .deps import get_current_user
+from .deps import get_current_user, require_role
 
 router = APIRouter(prefix="/api/workflows", tags=["workflows"])
 
@@ -70,7 +70,7 @@ async def list_workflows(
 async def create_workflow(
     payload: WorkflowCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> Workflow:
     await _validate_steps(db, user, [s.model_dump() for s in payload.steps])
     wf = Workflow(
@@ -143,7 +143,7 @@ async def update_workflow(
     workflow_id: str,
     payload: WorkflowUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> Workflow:
     # 数据隔离 R17：编辑仅创建者本人（与 agents.py update_custom_agent 一致）
     wf = await db.get(Workflow, workflow_id)
@@ -174,7 +174,7 @@ async def update_workflow(
 async def delete_workflow(
     workflow_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> None:
     # 数据隔离 R17：删除仅创建者本人
     wf = await db.get(Workflow, workflow_id)
@@ -194,7 +194,7 @@ async def run_workflow(
     workflow_id: str,
     _rl: None = Depends(_run_limit),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> WorkflowRunCreated:
     # 数据隔离 R17：运行按租户共享（同租户可触发，与 agents.py run_agent 一致）
     wf = await db.get(Workflow, workflow_id)

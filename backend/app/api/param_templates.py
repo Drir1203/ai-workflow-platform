@@ -8,7 +8,7 @@ from ..db import get_db
 from ..models.param_template import ParamTemplate
 from ..models.user import User
 from ..schemas.template import TemplateCreate, TemplateRead, TemplateUpdate
-from .deps import get_current_user
+from .deps import get_current_user, require_role
 
 router = APIRouter(prefix="/api/param-templates", tags=["param-templates"])
 
@@ -45,7 +45,7 @@ async def list_templates(
 async def create_template(
     payload: TemplateCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> ParamTemplate:
     tpl = ParamTemplate(
         tenant_id=user.tenant_id,
@@ -65,7 +65,7 @@ async def update_template(
     template_id: str,
     payload: TemplateUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> ParamTemplate:
     """更新模板（仅本人）：None 字段不修改。"""
     tpl = await _get_or_404(db, template_id, user)
@@ -82,7 +82,7 @@ async def update_template(
 async def delete_template(
     template_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role("owner", "member")),
 ) -> None:
     """删除模板（仅本人）。"""
     tpl = await _get_or_404(db, template_id, user)

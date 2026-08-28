@@ -11,6 +11,7 @@ import { TopBar } from './TopBar'
 import { DashboardPage } from '../pages/DashboardPage'
 import { ProjectPage } from '../pages/ProjectPage'
 import { AgentsPage } from '../pages/AgentsPage'
+import { TeamPage } from '../pages/TeamPage'
 import { WorkflowsPage } from '../pages/WorkflowsPage'
 
 export function Shell({ mode, onLogout }: { mode: Mode; onLogout?: () => void }) {
@@ -114,6 +115,8 @@ export function Shell({ mode, onLogout }: { mode: Mode; onLogout?: () => void })
             <AgentsPage layer={layer} projects={projects} />
           ) : view.name === 'workflows' ? (
             <WorkflowsPage layer={layer} projects={projects} />
+          ) : view.name === 'team' ? (
+            <TeamPage layer={layer} currentUser={user} />
           ) : (
             <ProjectPage
               project={projects.find((p) => p.id === view.id)}

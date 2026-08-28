@@ -47,7 +47,22 @@ export interface User {
   id: string
   email: string
   name: string
+  role: string
   created_at: string
+}
+
+// 团队成员：共享 tenant_id 即同团队；role = owner | member | readonly
+export interface TeamMember {
+  id: string
+  email: string
+  name: string
+  role: string
+  created_at: string
+}
+
+export interface InviteResult {
+  code: string
+  invite_url: string
 }
 
 export interface AuthResponse {
