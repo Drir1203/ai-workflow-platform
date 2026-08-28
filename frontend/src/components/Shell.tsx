@@ -55,12 +55,16 @@ export function Shell({ mode, onLogout }: { mode: Mode; onLogout?: () => void })
       await refresh()
       if (view.name === 'project' && view.id === id) setView({ name: 'dashboard' })
     },
-    createTask: async (t: { project_id: string; title: string; priority?: string }) => {
+    createTask: async (t: { project_id: string; title: string; priority?: string; status?: string }) => {
       await layer.createTask(t)
       await refresh()
     },
     toggleTask: async (task: Task) => {
       await layer.updateTask(task.id, { status: task.status === 'done' ? 'todo' : 'done' })
+      await refresh()
+    },
+    moveTask: async (task: Task, status: string) => {
+      await layer.updateTask(task.id, { status })
       await refresh()
     },
     deleteTask: async (id: string) => {
@@ -119,6 +123,7 @@ export function Shell({ mode, onLogout }: { mode: Mode; onLogout?: () => void })
               onBack={() => setView({ name: 'dashboard' })}
               onCreateTask={handlers.createTask}
               onToggleTask={handlers.toggleTask}
+              onMoveTask={handlers.moveTask}
               onDeleteTask={handlers.deleteTask}
               onCreateNote={handlers.createNote}
               onUpdateNote={handlers.updateNote}

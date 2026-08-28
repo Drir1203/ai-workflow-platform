@@ -290,13 +290,13 @@ export const demoApi = {
     const list = projectId ? tasks.filter((t) => t.project_id === projectId) : tasks
     return [...list]
   },
-  async createTask(t: { project_id: string; title: string; priority?: string; description?: string }): Promise<Task> {
+  async createTask(t: { project_id: string; title: string; priority?: string; description?: string; status?: string }): Promise<Task> {
     await delay()
     const now = new Date().toISOString()
     const task: Task = {
       id: `t-${++tid}`, project_id: t.project_id, title: t.title,
       description: t.description ?? null, priority: t.priority ?? 'medium',
-      status: 'todo', due_date: null, created_at: now, updated_at: now,
+      status: t.status ?? 'todo', due_date: null, created_at: now, updated_at: now,
     }
     tasks = [task, ...tasks]
     return task

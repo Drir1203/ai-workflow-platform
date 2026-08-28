@@ -11,6 +11,7 @@ import { Empty } from '../components/ui/empty'
 import { Input, Textarea } from '../components/ui/input'
 import type { Note, Project, Task } from '../types'
 import { DocTab } from './DocTab'
+import { KanbanBoard } from '../components/KanbanBoard'
 import { KnowledgeTab } from './KnowledgeTab'
 
 export function ProjectPage({
@@ -21,6 +22,7 @@ export function ProjectPage({
   onBack,
   onCreateTask,
   onToggleTask,
+  onMoveTask,
   onDeleteTask,
   onCreateNote,
   onUpdateNote,
@@ -32,8 +34,9 @@ export function ProjectPage({
   notes: Note[]
   layer: DataLayer
   onBack: () => void
-  onCreateTask: (t: { project_id: string; title: string; priority?: string }) => Promise<void>
+  onCreateTask: (t: { project_id: string; title: string; priority?: string; status?: string }) => Promise<void>
   onToggleTask: (task: Task) => Promise<void>
+  onMoveTask: (task: Task, status: string) => Promise<void>
   onDeleteTask: (id: string) => Promise<void>
   onCreateNote: (n: { project_id: string; title: string; content?: string }) => Promise<void>
   onUpdateNote: (id: string, patch: Partial<Note>) => Promise<void>
@@ -41,6 +44,7 @@ export function ProjectPage({
   onDeleteProject: (id: string) => Promise<void>
 }) {
   const [showTaskForm, setShowTaskForm] = useState(false)
+  const [taskMode, setTaskMode] = useState<'list' | 'board'>('list')
   const [tab, setTab] = useState<'overview' | 'knowledge' | 'docs'>('overview')
   const [taskTitle, setTaskTitle] = useState('')
   const [priority, setPriority] = useState('medium')
@@ -173,13 +177,38 @@ export function ProjectPage({
           aria-labelledby="tab-overview"
           className="grid gap-6 lg:grid-cols-7"
         >
-          <section className="lg:col-span-4">
+          <section className={cn('lg:col-span-4', taskMode === 'board' && 'lg:col-span-7')}>
           <Card className="overflow-hidden">
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
-              <h2 className="text-[13px] font-semibold text-ink-2">任务</h2>
-              <Button size="sm" variant="secondary" onClick={() => setShowTaskForm((s) => !s)}>
-                {showTaskForm ? '收起' : '+ 添加任务'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <h2 className="text-[13px] font-semibold text-ink-2">任务</h2>
+                {/* 列表/看板视图切换：看板 = 拖拽列改状态 */}
+                <div className="flex overflow-hidden rounded-md border border-line-soft">
+                  <button
+                    onClick={() => setTaskMode('list')}
+                    className={cn(
+                      'px-2 py-0.5 text-[11px] transition-colors',
+                      taskMode === 'list' ? 'bg-gold-primary/15 text-gold' : 'text-ink-4 hover:text-ink',
+                    )}
+                  >
+                    列表
+                  </button>
+                  <button
+                    onClick={() => setTaskMode('board')}
+                    className={cn(
+                      'px-2 py-0.5 text-[11px] transition-colors',
+                      taskMode === 'board' ? 'bg-gold-primary/15 text-gold' : 'text-ink-4 hover:text-ink',
+                    )}
+                  >
+                    看板
+                  </button>
+                </div>
+              </div>
+              {taskMode === 'list' && (
+                <Button size="sm" variant="secondary" onClick={() => setShowTaskForm((s) => !s)}>
+                  {showTaskForm ? '收起' : '+ 添加任务'}
+                </Button>
+              )}
             </div>
             {showTaskForm && (
               <form onSubmit={submitTask} className="flex gap-2 border-b border-line bg-elev1 p-3">
@@ -204,7 +233,16 @@ export function ProjectPage({
                 </Button>
               </form>
             )}
-            {tasks.length === 0 ? (
+            {taskMode === 'board' ? (
+              // 看板模式：三列拖拽，空列自带「拖拽任务到这里」引导，不再用空态卡片
+              <KanbanBoard
+                tasks={tasks}
+                projectId={projectId}
+                onMoveTask={onMoveTask}
+                onCreateTask={onCreateTask}
+                onDeleteTask={onDeleteTask}
+              />
+            ) : tasks.length === 0 ? (
               <Empty
                 title="还没有任务"
                 hint="添加第一个任务，开始推进这个项目。"

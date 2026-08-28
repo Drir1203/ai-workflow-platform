@@ -125,7 +125,7 @@ export const api = {
   deleteProject: (id: string) => request<void>('DELETE', `/api/projects/${id}`),
   listTasks: (projectId?: string) =>
     request<Task[]>('GET', `/api/tasks${projectId ? `?project_id=${projectId}` : ''}`),
-  createTask: (t: { project_id: string; title: string; priority?: string; description?: string }) =>
+  createTask: (t: { project_id: string; title: string; priority?: string; description?: string; status?: string }) =>
     request<Task>('POST', '/api/tasks', t),
   updateTask: (id: string, patch: Partial<Task>) =>
     request<Task>('PATCH', `/api/tasks/${id}`, patch),
