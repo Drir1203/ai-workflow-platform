@@ -6,6 +6,7 @@ from .document import Document
 from .document_chunk import DocumentChunk
 from .invite import Invite
 from .note import Note
+from .notification import Notification
 from .param_template import ParamTemplate
 from .project import Project
 from .task import Task
@@ -23,6 +24,7 @@ __all__ = [
     "DocumentChunk",
     "Invite",
     "Note",
+    "Notification",
     "ParamTemplate",
     "Project",
     "Task",

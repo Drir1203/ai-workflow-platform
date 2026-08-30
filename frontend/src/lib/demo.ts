@@ -12,6 +12,8 @@ import type {
   KnowledgeResponse,
   Doc,
   Note,
+  Notification,
+  NotificationType,
   Paginated,
   ParamTemplate,
   Project,
@@ -19,6 +21,7 @@ import type {
   Schedule,
   Task,
   TeamMember,
+  UnreadCount,
   User,
   Workflow,
   WorkflowRun,
@@ -253,6 +256,15 @@ let demoMembers: TeamMember[] = [
   { id: 'm-2', email: 'lin@example.com', name: '林', role: 'member', created_at: iso(20) },
 ]
 let demoInvites: { code: string; email: string; role: string }[] = []
+
+// 站内通知演示数据：5 条覆盖各 type，含未读，供铃铛红点 + 面板展示
+let notifications: Notification[] = [
+  { id: 'no-1', type: 'due_reminder', title: '任务到期提醒', body: '任务「1688 数据源整店巡检」已于 2026-08-06 到期，请及时处理', ref_id: 't-1', read_at: null, created_at: iso(0, 8) },
+  { id: 'no-2', type: 'agent_run', title: 'Agent 运行完成', body: 'Agent「周报生成」已运行完成', ref_id: 'ar-1', read_at: null, created_at: iso(1) },
+  { id: 'no-3', type: 'workflow_run', title: '工作流运行完成', body: '工作流「每日巡检」（手动）已运行完成', ref_id: 'wr-1', read_at: iso(2), created_at: iso(2) },
+  { id: 'no-4', type: 'team', title: '新成员加入团队', body: 'lin@example.com 通过邀请加入了你的团队（角色：member）', ref_id: 'm-2', read_at: null, created_at: iso(3) },
+  { id: 'no-5', type: 'knowledge', title: '文档已入库', body: '文档「巡检流程.md」已成功导入知识库', ref_id: 'd-2', read_at: iso(4), created_at: iso(4) },
+]
 
 export const demoApi = {
   // ---------- 认证（演示模式直接放行；补全 api ⇄ demoApi 镜像，保证 DataLayer 不变量成立） ----------
@@ -662,5 +674,32 @@ export const demoApi = {
         matched: query.trim().split(/\s+/).slice(0, 3),
       })),
     }
+  },
+  // ---------- 站内通知（演示数据，与 api.ts 签名镜像） ----------
+  async listNotifications(opts?: { unread_only?: boolean; type?: NotificationType; page?: number; page_size?: number }): Promise<Paginated<Notification>> {
+    await delay()
+    let list = opts?.type ? notifications.filter((n) => n.type === opts.type) : notifications
+    if (opts?.unread_only) list = list.filter((n) => !n.read_at)
+    const page = opts?.page ?? 1
+    const pageSize = opts?.page_size ?? 20
+    return { items: list.slice((page - 1) * pageSize, page * pageSize), total: list.length, page, page_size: pageSize }
+  },
+  async getUnreadCount(): Promise<UnreadCount> {
+    await delay()
+    return { count: notifications.filter((n) => !n.read_at).length }
+  },
+  async markNotificationRead(id: string): Promise<void> {
+    await delay()
+    notifications = notifications.map((n) => (n.id === id && !n.read_at ? { ...n, read_at: new Date().toISOString() } : n))
+  },
+  async markAllNotificationsRead(): Promise<{ updated: number }> {
+    await delay()
+    const unread = notifications.filter((n) => !n.read_at).length
+    notifications = notifications.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() }))
+    return { updated: unread }
+  },
+  async deleteNotification(id: string): Promise<void> {
+    await delay()
+    notifications = notifications.filter((n) => n.id !== id)
   },
 }

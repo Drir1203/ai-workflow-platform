@@ -88,7 +88,7 @@ export function Shell({ mode, onLogout }: { mode: Mode; onLogout?: () => void })
 
   return (
     <div className="flex h-dvh flex-col bg-bg">
-      <TopBar mode={mode} user={user} onLogout={onLogout} />
+      <TopBar mode={mode} layer={layer} user={user} onLogout={onLogout} />
       {mode === 'demo' && (
         <div className="flex items-center gap-2 border-b border-gold/15 bg-gold-tint/40 px-5 py-1.5 text-[11px] text-gold">
           <span className="h-1.5 w-1.5 animate-pulseDot rounded-full bg-gold" style={{ boxShadow: '0 0 6px rgba(217,164,65,.8)' }} />

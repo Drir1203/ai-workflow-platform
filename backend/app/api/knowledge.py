@@ -25,6 +25,7 @@ from ..schemas.document import (
     KnowledgeSource,
     ScanResult,
 )
+from ..services.notification import create_notification
 from .deps import get_current_user, require_role
 
 router = APIRouter(prefix="/api/projects/{project_id}", tags=["knowledge"])
@@ -127,7 +128,19 @@ async def upload_document(
         db.add(doc)
         await db.commit()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return await _ingest_text(db, project, file.filename or "unnamed", content_type, text)
+    doc = await _ingest_text(db, project, file.filename or "unnamed", content_type, text)
+    # 入库成功通知（_ingest_text 内部已 commit，此处通知需自行提交）
+    await create_notification(
+        db,
+        user_id=user.id,
+        type="knowledge",
+        title="文档已入库",
+        body=f"文档「{doc.name}」已成功导入知识库",
+        ref_id=doc.id,
+        tenant_id=project.tenant_id,
+    )
+    await db.commit()
+    return doc
 
 
 @router.get("/documents", response_model=list[DocumentRead])
@@ -176,6 +189,17 @@ async def scan_documents(
             continue
         await _ingest_text(db, project, rel, content_type, text, source="scan", source_path=rel)
         imported += 1
+    # 扫描汇总通知：单条，避免每篇一条刷屏（_ingest_text 已 commit，此处需自行提交）
+    await create_notification(
+        db,
+        user_id=user.id,
+        type="knowledge",
+        title="知识库扫描完成",
+        body=f"扫描「{project.name}」：新增导入 {imported} 篇，跳过 {len(skipped)} 篇",
+        ref_id=project.id,
+        tenant_id=project.tenant_id,
+    )
+    await db.commit()
     return ScanResult(imported=imported, skipped=skipped)
 
 

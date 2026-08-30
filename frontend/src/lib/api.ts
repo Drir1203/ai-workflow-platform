@@ -11,6 +11,8 @@ import type {
   KnowledgeDocument,
   KnowledgeResponse,
   Note,
+  Notification,
+  NotificationType,
   Paginated,
   ParamTemplate,
   Project,
@@ -18,6 +20,7 @@ import type {
   Schedule,
   Task,
   TeamMember,
+  UnreadCount,
   User,
   Workflow,
   WorkflowRun,
@@ -317,4 +320,17 @@ export const api = {
       }
     }
   },
+  // ---------- 站内通知（Notification Center） ----------
+  listNotifications: (opts?: { unread_only?: boolean; type?: NotificationType; page?: number; page_size?: number }) => {
+    const q = new URLSearchParams()
+    if (opts?.unread_only) q.set('unread_only', 'true')
+    if (opts?.type) q.set('type', opts.type)
+    q.set('page', String(opts?.page ?? 1))
+    q.set('page_size', String(opts?.page_size ?? 20))
+    return request<Paginated<Notification>>('GET', `/api/notifications?${q}`)
+  },
+  getUnreadCount: () => request<UnreadCount>('GET', '/api/notifications/unread-count'),
+  markNotificationRead: (id: string) => request<void>('POST', `/api/notifications/${id}/read`),
+  markAllNotificationsRead: () => request<{ updated: number }>('POST', '/api/notifications/read-all'),
+  deleteNotification: (id: string) => request<void>('DELETE', `/api/notifications/${id}`),
 }

@@ -225,6 +225,24 @@ export interface ScanResult {
   skipped: string[]
 }
 
+// ---------- 站内通知（Notification Center） ----------
+
+export type NotificationType = 'agent_run' | 'workflow_run' | 'team' | 'knowledge' | 'due_reminder'
+
+export interface Notification {
+  id: string
+  type: NotificationType
+  title: string
+  body: string | null
+  ref_id: string | null
+  read_at: string | null // 为空即未读
+  created_at: string
+}
+
+export interface UnreadCount {
+  count: number
+}
+
 // ---------- AI 副驾（Copilot） ----------
 
 export interface CopilotMessage {

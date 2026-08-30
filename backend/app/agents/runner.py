@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.ai import get_ai_engine
 from app.db import SessionLocal
 from app.models import AgentRun, User
+from app.services.notification import create_notification
 
 from .base import AgentContext
 from .custom import resolve_agent
@@ -51,6 +52,27 @@ class RunManager:
                 run.error = str(exc)
             finally:
                 run.finished_at = datetime.now(timezone.utc)
+                # 运行结果通知：best-effort，失败不影响 run 状态落库（create_notification 不 commit）
+                if run.status == "succeeded":
+                    await create_notification(
+                        db,
+                        user_id=run.user_id,
+                        type="agent_run",
+                        title="Agent 运行完成",
+                        body=f"Agent「{run.agent_key}」已运行完成",
+                        ref_id=run.id,
+                        tenant_id=run.tenant_id,
+                    )
+                else:
+                    await create_notification(
+                        db,
+                        user_id=run.user_id,
+                        type="agent_run",
+                        title="Agent 运行失败",
+                        body=f"Agent「{run.agent_key}」运行失败：{(run.error or '')[:200]}",
+                        ref_id=run.id,
+                        tenant_id=run.tenant_id,
+                    )
                 await db.commit()
 
     async def shutdown(self) -> None:

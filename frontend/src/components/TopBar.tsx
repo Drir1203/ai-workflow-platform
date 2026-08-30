@@ -1,20 +1,24 @@
+import type { DataLayer } from '../lib/view'
 import type { Mode, User } from '../types'
 import { Brand } from './Logo'
+import { NotificationBell } from './NotificationBell'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 
 interface TopBarProps {
   mode: Mode
+  layer: DataLayer
   user?: User | null
   onLogout?: () => void
 }
 
-export function TopBar({ mode, user, onLogout }: TopBarProps) {
+export function TopBar({ mode, layer, user, onLogout }: TopBarProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-elev1 px-5">
       <Brand />
       <div className="flex items-center gap-3">
+        <NotificationBell layer={layer} />
         <ThemeSwitcher />
         {mode === 'demo' && <Badge tone="gold">演示模式</Badge>}
         {mode === 'live' && user && (

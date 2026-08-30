@@ -12,6 +12,7 @@ from .api import (
     health,
     knowledge,
     notes,
+    notifications,
     param_templates,
     projects,
     tasks,
@@ -61,6 +62,7 @@ app.include_router(writing_router)
 app.include_router(agents.router)
 app.include_router(param_templates.router)
 app.include_router(knowledge.router)
+app.include_router(notifications.router)
 app.include_router(workflows.router)
 app.include_router(wechat.router)
 

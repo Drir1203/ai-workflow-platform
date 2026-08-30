@@ -11,6 +11,7 @@ from ..models.invite import Invite
 from ..models.user import User
 from ..schemas.team import AcceptInvite, InviteCreate, MemberUpdate, TeamMember
 from ..schemas.user import UserRead
+from ..services.notification import create_notification
 from .deps import get_current_user, owner_only, resolve_invite
 
 router = APIRouter(prefix="/api/team", tags=["team"])
@@ -68,6 +69,16 @@ async def accept_invite(
     user.tenant_id = invite.tenant_id
     user.role = invite.role
     invite.used_at = datetime.now(timezone.utc)
+    # 通知邀请人新成员加入（与成员迁移同一事务，通知失败不影响入团）
+    await create_notification(
+        db,
+        user_id=invite.inviter_id,
+        type="team",
+        title="新成员加入团队",
+        body=f"{user.email} 通过邀请加入了你的团队（角色：{invite.role}）",
+        ref_id=user.id,
+        tenant_id=invite.tenant_id,
+    )
     await db.commit()
     await db.refresh(user)
     return user
@@ -87,6 +98,15 @@ async def update_member_role(
     if member is None or member.tenant_id != user.tenant_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="member not found")
     member.role = payload.role
+    # 通知被改角色者（角色变更与通知同一事务）
+    await create_notification(
+        db,
+        user_id=member.id,
+        type="team",
+        title="你的团队角色已变更",
+        body=f"管理员将你的角色调整为「{payload.role}」",
+        tenant_id=member.tenant_id,
+    )
     await db.commit()
     await db.refresh(member)
     return member
@@ -104,6 +124,16 @@ async def remove_member(
     member = await db.get(User, user_id)
     if member is None or member.tenant_id != user.tenant_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="member not found")
+    old_tenant_id = member.tenant_id  # 先捕获旧租户再迁移，通知记录原团队归属
     member.tenant_id = str(uuid4())
     member.role = "owner"
+    # 通知被移除者（查询靠 user_id，不受租户迁移影响）
+    await create_notification(
+        db,
+        user_id=member.id,
+        type="team",
+        title="你已被移出团队",
+        body="你已被管理员移出团队，原团队数据对你不再可见",
+        tenant_id=old_tenant_id,
+    )
     await db.commit()

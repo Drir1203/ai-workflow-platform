@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -12,6 +14,8 @@ from app.db import SessionLocal
 from app.models import Workflow, WorkflowRun
 
 from .executor import workflow_run_manager
+
+logger = logging.getLogger(__name__)
 
 
 def _job_id(workflow_id: str) -> str:
@@ -49,7 +53,25 @@ class SchedulerService:
     def start(self) -> None:
         sched = self._get_scheduler()
         if not sched.running:
+            # 到期提醒扫描：每天 9/15/21 点（Asia/Shanghai）。
+            # 固定 id + replace_existing + 单实例，保证重启/多次调用不重复注册。
+            sched.add_job(
+                self._scan_due_reminders,
+                trigger=CronTrigger(hour="9,15,21", timezone=settings.scheduler_timezone),
+                id="due-reminder-scan",
+                replace_existing=True,
+                coalesce=True,
+                max_instances=1,
+            )
             sched.start()
+
+    async def _scan_due_reminders(self) -> None:
+        """到期提醒 job 回调：用 self.session_factory（非启动快照），测试可注入会话工厂。"""
+        from app.services.notification import scan_due_reminders
+
+        inserted = await scan_due_reminders(self.session_factory)
+        if inserted:
+            logger.info("due-reminder-scan: inserted %d reminders", inserted)
 
     async def load_all(self) -> None:
         """启动时加载全部 enabled 且有 schedule 的 workflow。"""
