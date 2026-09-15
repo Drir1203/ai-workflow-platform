@@ -1,0 +1,976 @@
+<title>AI智序</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* ─────────────────────────────────────────────────────────────
+   Token 体系 · 沿用 DESIGN.md「黑金旗舰 Obsidian」
+   品牌为暗色优先，故 :root 直出暗色；浅色（aurora 象牙白）
+   走媒体查询 + [data-theme] 覆写。所有 token 均在此完整声明。
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --bg:            #0C0C0B;
+  --bg-elev-1:     #10100F;
+  --bg-elev-2:     #141413;
+  --bg-active:     #1C1B18;
+  --line:          #232321;
+  --line-strong:   #262621;
+  --line-soft:     #2A2A24;
+
+  --ink:           #F0EDE6;
+  --ink-2:         #C9C4B8;
+  --ink-3:         #8B877E;
+  --ink-4:         #6E6C64;
+  --ink-5:         #5C5A52;
+
+  --gold:          #E8C078;
+  --gold-primary:  #D9A441;
+  --gold-deep:     #A9762B;
+  --gold-tint:     #2A2213;
+  --gold-glow:     0 0 8px rgba(217, 164, 65, .45);
+  --gold-grad:     linear-gradient(135deg, #E8C078, #A9762B);
+
+  --success:       #7FD1A0;
+  --warning:       #E5B567;
+  --error:         #E57373;
+  --info:          #8FA8C0;
+
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg:            #F7F4EE;
+    --bg-elev-1:     #FFFFFF;
+    --bg-elev-2:     #FFFDF9;
+    --bg-active:     #EFEAE0;
+    --line:          #E2DCD0;
+    --line-strong:   #D8D1C3;
+    --line-soft:     #EAE4D9;
+
+    --ink:           #1C1A16;
+    --ink-2:         #45403A;
+    --ink-3:         #6B655C;
+    --ink-4:         #8B8479;
+    --ink-5:         #A29A8D;
+
+    --gold:          #8A5F1E;
+    --gold-primary:  #B8862F;
+    --gold-deep:     #8A5F1E;
+    --gold-tint:     #F3E9D4;
+    --gold-glow:     0 0 8px rgba(184, 134, 47, .30);
+
+    --success:       #2F7D53;
+    --warning:       #8A6412;
+    --error:         #B03A3A;
+    --info:          #3F5F80;
+  }
+}
+
+:root[data-theme="light"] {
+  --bg:            #F7F4EE;
+  --bg-elev-1:     #FFFFFF;
+  --bg-elev-2:     #FFFDF9;
+  --bg-active:     #EFEAE0;
+  --line:          #E2DCD0;
+  --line-strong:   #D8D1C3;
+  --line-soft:     #EAE4D9;
+
+  --ink:           #1C1A16;
+  --ink-2:         #45403A;
+  --ink-3:         #6B655C;
+  --ink-4:         #8B8479;
+  --ink-5:         #A29A8D;
+
+  --gold:          #8A5F1E;
+  --gold-primary:  #B8862F;
+  --gold-deep:     #8A5F1E;
+  --gold-tint:     #F3E9D4;
+  --gold-glow:     0 0 8px rgba(184, 134, 47, .30);
+
+  --success:       #2F7D53;
+  --warning:       #8A6412;
+  --error:         #B03A3A;
+  --info:          #3F5F80;
+}
+
+/* ── 基础 ───────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding-inline: 20px;
+  padding-block: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.25; letter-spacing: -.01em; }
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+a { color: var(--gold); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+:focus-visible {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ── 页宽容器 ───────────────────────────────────────────── */
+.wrap { max-width: 1060px; margin-inline: auto; }
+
+/* ── 顶部导航：浮动条 ───────────────────────────────────── */
+.topbar {
+  position: sticky;
+  top: 12px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-block: 12px 0;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev-1);
+}
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 600; letter-spacing: .01em; }
+.brand .mark {
+  inline-size: 18px; block-size: 18px;
+  border-radius: 5px;
+  background: var(--gold-grad);
+  box-shadow: var(--gold-glow);
+}
+.navlinks { display: flex; gap: 4px; flex-wrap: wrap; }
+.navlinks a {
+  padding: 4px 9px;
+  border-radius: 7px;
+  color: var(--ink-3);
+  font-size: 13px;
+  transition: background-color .15s, color .15s;
+}
+.navlinks a:hover { background: var(--bg-active); color: var(--ink); text-decoration: none; }
+
+/* ── 区块节奏 ───────────────────────────────────────────── */
+.sec { padding-block: 54px; border-top: 1px solid var(--line); }
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .14em;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+.sec-title { font-size: 25px; font-weight: 600; margin-bottom: 10px; }
+.sec-lede { color: var(--ink-2); max-width: 68ch; }
+.sec-lede strong, .feat strong, .panel-inner strong { color: var(--ink); font-weight: 600; }
+
+/* ── Hero ───────────────────────────────────────────────── */
+.hero { padding-block: 62px 48px; }
+.hero h1 {
+  font-size: clamp(30px, 5.2vw, 46px);
+  font-weight: 700;
+  letter-spacing: -.025em;
+  margin-bottom: 18px;
+}
+.hero h1 .accent {
+  background: var(--gold-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hero .lede {
+  font-size: 17px;
+  color: var(--ink-2);
+  max-width: 62ch;
+}
+.hero .lede strong { color: var(--ink); font-weight: 600; }
+.hero .claim {
+  margin-top: 20px;
+  padding-left: 14px;
+  border-left: 2px solid var(--gold-primary);
+  font-size: 16px;
+  color: var(--ink);
+  max-width: 60ch;
+}
+
+/* 数据条：香槟金数字 + 微光（DESIGN.md 记忆点） */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 1px;
+  margin-top: 34px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--line);
+}
+.stat { background: var(--bg-elev-1); padding: 15px 16px; }
+.stat .n {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--gold);
+  text-shadow: var(--gold-glow);
+  line-height: 1.2;
+}
+.stat .k { font-size: 12px; color: var(--ink-4); margin-top: 3px; }
+
+/* ── 痛点对照（旧世界 → 新世界） ───────────────────────── */
+.shift { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.shift-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--line);
+}
+.shift-row > div { background: var(--bg-elev-1); padding: 18px 20px; }
+.shift-row .old { color: var(--ink-3); }
+.shift-row .new { color: var(--ink); }
+.shift-head > div {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  color: var(--ink-4);
+  padding-block: 9px;
+  background: var(--bg-elev-2);
+}
+.shift-row .lbl {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  color: var(--ink-5);
+  margin-bottom: 5px;
+}
+.shift-row .new .lbl { color: var(--gold-deep); }
+
+/* ── 能力地图 ───────────────────────────────────────────── */
+.cap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); gap: 16px; }
+.cap {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev-1);
+  padding: 16px 18px 18px;
+}
+.cap h3 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.cap .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--ink-5); }
+.cap ul { margin-top: 12px; display: grid; gap: 9px; }
+.cap li { padding-left: 15px; position: relative; font-size: 13.5px; color: var(--ink-2); line-height: 1.55; }
+.cap li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: .62em;
+  inline-size: 5px; block-size: 5px;
+  border-radius: 50%;
+  background: var(--gold-deep);
+}
+.cap li b { color: var(--ink); font-weight: 600; }
+
+/* ── 亮点条目 ───────────────────────────────────────────── */
+.feature { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.feat {
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--gold-deep);
+  border-radius: 0 12px 12px 0;
+  background: var(--bg-elev-1);
+  padding: 16px 18px;
+}
+.feat h3 { font-size: 14.5px; font-weight: 600; margin-bottom: 6px; }
+.feat p { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+
+/* ── 代码块 ─────────────────────────────────────────────── */
+.code {
+  margin-top: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--bg-elev-2);
+  overflow-x: auto;
+}
+.code pre {
+  margin: 0;
+  padding: 16px 18px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  white-space: pre;
+}
+.code .kw { color: var(--gold); }
+.code .cm { color: var(--ink-4); }
+.code .fn { color: var(--info); }
+
+/* ── 架构图：分层包含关系 ──────────────────────────────── */
+.arch { margin-top: 22px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.band {
+  display: grid;
+  grid-template-columns: 118px 1fr;
+  gap: 1px;
+  background: var(--line);
+}
+.band > * { background: var(--bg-elev-1); padding: 14px 16px; }
+.band .bl {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  color: var(--ink-4);
+  background: var(--bg-elev-2);
+  display: flex;
+  align-items: center;
+}
+.band .nodes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.node {
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 6px 11px;
+  font-size: 13px;
+  color: var(--ink-2);
+  background: var(--bg-elev-2);
+}
+.node b { color: var(--ink); font-weight: 600; }
+.node .sub { display: block; font-family: var(--mono); font-size: 10px; color: var(--ink-5); letter-spacing: .04em; }
+/* 金色微光只给一处：AI 引擎适配层 —— 产品的差异化所在 */
+.node.hero-node {
+  border-color: var(--gold-primary);
+  background: var(--gold-tint);
+  box-shadow: var(--gold-glow);
+}
+.node.hero-node b { color: var(--gold); }
+.node.hero-node .sub { color: var(--gold-deep); }
+
+/* ── 表格 ───────────────────────────────────────────────── */
+.tbl-wrap { margin-top: 18px; border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 13.5px; }
+th, td { text-align: left; padding: 11px 15px; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  color: var(--ink-4);
+  background: var(--bg-elev-2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+tbody td { color: var(--ink-2); }
+tbody td:first-child { color: var(--ink); font-weight: 500; }
+tbody tr:hover td { background: var(--bg-elev-2); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── 路线图：真实时序，编号有意义 ───────────────────────── */
+.road { display: grid; gap: 14px; margin-top: 22px; }
+.phase {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  gap: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev-1);
+  padding: 18px 20px;
+}
+.phase .no {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--gold-deep);
+  line-height: 1.1;
+}
+.phase .no span { display: block; font-size: 10px; letter-spacing: .1em; color: var(--ink-5); margin-top: 5px; }
+.phase h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.phase .when { font-family: var(--mono); font-size: 11px; color: var(--ink-4); margin-bottom: 9px; }
+.phase p { font-size: 13.5px; color: var(--ink-2); }
+.phase .done { color: var(--success); }
+.phase .todo { color: var(--warning); }
+
+/* ── 受众切换（真正的并列选项，故用 tab） ──────────────── */
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 20px; }
+.tabs button {
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-elev-1);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background-color .15s;
+}
+.tabs button:hover { color: var(--ink); border-color: var(--gold-deep); }
+.tabs button[aria-selected="true"] {
+  background: var(--gold-tint);
+  border-color: var(--gold-primary);
+  color: var(--gold);
+}
+.panel { margin-top: 18px; }
+.panel-inner {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev-1);
+  padding: 20px 22px;
+}
+.panel-inner .say {
+  border-left: 2px solid var(--gold-primary);
+  padding-left: 15px;
+  font-size: 15px;
+  color: var(--ink);
+  line-height: 1.7;
+}
+.panel-inner .avoid {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.panel-inner .avoid b { color: var(--error); font-weight: 600; }
+
+/* ── FAQ ────────────────────────────────────────────────── */
+.faq { margin-top: 18px; border-top: 1px solid var(--line); }
+.faq-row { display: grid; grid-template-columns: 220px 1fr; gap: 20px; padding-block: 14px; border-bottom: 1px solid var(--line); }
+.faq-row .q { font-weight: 600; font-size: 14px; }
+.faq-row .a { font-size: 13.5px; color: var(--ink-2); }
+
+/* ── 页脚 ───────────────────────────────────────────────── */
+.foot {
+  padding-block: 30px 44px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-4);
+  font-size: 12.5px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* ── 响应式 ─────────────────────────────────────────────── */
+@media (max-width: 620px) {
+  .sec { padding-block: 40px; }
+  .hero { padding-block: 44px 34px; }
+  .shift-row { grid-template-columns: 1fr; }
+  .shift-head { display: none; }
+  .band { grid-template-columns: 1fr; }
+  .band .bl { padding-block: 8px; }
+  .faq-row { grid-template-columns: 1fr; gap: 6px; }
+  .phase { grid-template-columns: 1fr; gap: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+.hero > * { animation: rise .5s ease-out backwards; }
+.hero > *:nth-child(2) { animation-delay: .06s; }
+.hero > *:nth-child(3) { animation-delay: .12s; }
+.hero > *:nth-child(4) { animation-delay: .18s; }
+</style>
+
+<header class="topbar wrap">
+  <div class="brand"><span class="mark" aria-hidden="true"></span>AI智序</div>
+  <nav class="navlinks" aria-label="页面导航">
+    <a href="#what">平台</a>
+    <a href="#cap">能力</a>
+    <a href="#tech">技术</a>
+    <a href="#arch">架构</a>
+    <a href="#proof">工程</a>
+    <a href="#road">路线</a>
+    <a href="#pitch">介绍话术</a>
+  </nav>
+</header>
+
+<main class="wrap">
+
+  <!-- ── Hero ────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="eyebrow">AI 办公工作台 · PROJECTHUB AI</div>
+    <h1>把「项目协作 + 知识管理 +<br><span class="accent">AI 自动化</span>」收进一个极简界面</h1>
+    <p class="lede">
+      不是又一个 AI 聊天框，也不是又一个重流程项目管理软件。AI智序把项目、任务、笔记、文档、知识库
+      收进同一个工作台，然后让 AI 成为<strong>能操作这些数据的执行者</strong>。
+    </p>
+    <p class="claim">
+      用对话下达指令，让 AI 在后台把活干完——<strong>你只需要看结果。</strong>
+    </p>
+
+    <div class="stats">
+      <div class="stat"><div class="n">199</div><div class="k">自动化用例</div></div>
+      <div class="stat"><div class="n">15</div><div class="k">数据表</div></div>
+      <div class="stat"><div class="n">4</div><div class="k">内置智能体</div></div>
+      <div class="stat"><div class="n">1</div><div class="k">台服务器私有化</div></div>
+      <div class="stat"><div class="n">0</div><div class="k">消息队列 / 向量库</div></div>
+    </div>
+  </section>
+
+  <!-- ── 它解决什么 ──────────────────────────────────────── -->
+  <section class="sec" id="what">
+    <div class="eyebrow">问题</div>
+    <h2 class="sec-title">团队的信息散在五个工具里，而 AI 只是个外挂的聊天窗口</h2>
+    <p class="sec-lede">
+      任务在一处、笔记在一处、文档在一处、知识库在一处，AI 工具在第五处——
+      而且它不认识你的项目数据，只能陪你聊天，不会替你干活。
+    </p>
+
+    <div class="shift" style="margin-top:22px">
+      <div class="shift-row shift-head" aria-hidden="true">
+        <div>现在</div>
+        <div>用 AI智序</div>
+      </div>
+      <div class="shift-row">
+        <div class="old"><span class="lbl">现在</span>周五下午翻遍任务列表、笔记和聊天记录，手动拼一份周报</div>
+        <div class="new"><span class="lbl">之后</span>点一次「周报」智能体，自动聚合本周项目、任务、笔记，<b>30 秒出稿</b></div>
+      </div>
+      <div class="shift-row">
+        <div class="old"><span class="lbl">现在</span>对着 AI 聊天框复制粘贴上下文，再手动把结果搬回项目里</div>
+        <div class="new"><span class="lbl">之后</span>AI 副驾直接读项目数据、建任务、跑智能体——<b>它就是操作者</b></div>
+      </div>
+      <div class="shift-row">
+        <div class="old"><span class="lbl">现在</span>每周重复的例行分析，每次都要人记得去做</div>
+        <div class="new"><span class="lbl">之后</span>画布上连三步、设成每天九点，<b>到公司报告已在通知里</b></div>
+      </div>
+      <div class="shift-row">
+        <div class="old"><span class="lbl">现在</span>团队文档越堆越多，找答案靠翻和问人</div>
+        <div class="new"><span class="lbl">之后</span>直接对文档提问，答案带来源引用——<b>检索为空时明说没有，不编造</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 能力地图 ────────────────────────────────────────── -->
+  <section class="sec" id="cap">
+    <div class="eyebrow">能力</div>
+    <h2 class="sec-title">能力地图</h2>
+    <p class="sec-lede">四组能力，共用同一份业务数据——这是「AI 能真干活」的前提。</p>
+
+    <div class="cap-grid" style="margin-top:22px">
+      <div class="cap">
+        <div class="tag">协作底座</div>
+        <h3>项目 · 任务 · 笔记 · 文档</h3>
+        <ul>
+          <li><b>项目</b>卡片关联仓库地址与部署地址，不脱离真实工程</li>
+          <li><b>任务</b>优先级、截止日期，列表与看板双视图，拖拽即改状态</li>
+          <li><b>文档</b>Markdown 编辑器，编辑 / 预览切换</li>
+          <li><b>AI 写作</b>续写、润色、总结，流式写入正文</li>
+        </ul>
+      </div>
+
+      <div class="cap">
+        <div class="tag">AI 能力</div>
+        <h3>副驾 · 智能体 · 工作流 · 知识库</h3>
+        <ul>
+          <li><b>AI 副驾</b>悬浮对话，理解意图后直接执行动作</li>
+          <li><b>智能体</b>4 个内置 + 零代码自定义，参数化运行</li>
+          <li><b>工作流</b>画布编排多步智能体，自动传递上一步结果</li>
+          <li><b>知识库</b>上传 PDF / Word / Markdown，问答带来源引用</li>
+        </ul>
+      </div>
+
+      <div class="cap">
+        <div class="tag">团队与治理</div>
+        <h3>多租户 · 角色 · 邀请</h3>
+        <ul>
+          <li><b>多租户</b>数据按租户隔离，跨租户访问一律 404</li>
+          <li><b>三级角色</b>owner / member / readonly</li>
+          <li><b>邀请机制</b>邀请链接并入团队，成员可迁入迁出</li>
+          <li><b>限流防护</b>登录、LLM、运行触发、上传四桶独立限流</li>
+        </ul>
+      </div>
+
+      <div class="cap">
+        <div class="tag">触达与提醒</div>
+        <h3>通知 · 到期提醒 · 小程序</h3>
+        <ul>
+          <li><b>通知中心</b>站内铃铛，5 类事件，未读轮询</li>
+          <li><b>到期提醒</b>任务到期与逾期自动提醒，按天幂等不重复</li>
+          <li><b>微信小程序</b>登录、工作台、项目、智能体 + 订阅消息</li>
+          <li><b>无人值守</b>定时跑完，结果推到通知里</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 技术方案 ────────────────────────────────────────── -->
+  <section class="sec" id="tech">
+    <div class="eyebrow">技术</div>
+    <h2 class="sec-title">三个决定产品上限的工程决策</h2>
+    <p class="sec-lede">
+      整套系统刻意保持极简：不引入消息队列、向量数据库、前端状态管理库或 UI 组件库。
+      在 5–50 人团队的规模下，这些是纯粹的复杂度负债。
+    </p>
+
+    <div class="feature" style="margin-top:22px">
+      <div class="feat">
+        <h3>可插拔 AI 引擎适配层</h3>
+        <p>
+          业务层只依赖一个 Protocol，接口只有三个方法。Dify 与任何 OpenAI 兼容端点
+          （DeepSeek、通义等）自由切换，<strong>业务代码零改动</strong>——客户已有的模型资产可以直接接进来。
+        </p>
+      </div>
+      <div class="feat">
+        <h3>零代码自定义智能体</h3>
+        <p>
+          写一段提示词 + 定义参数表单，就得到一个智能体。它和内置智能体被适配到
+          <strong>同一个接口</strong>，因此在「单独运行 / 工作流步骤 / 定时调度」三条路径上行为完全一致。
+        </p>
+      </div>
+      <div class="feat">
+        <h3>定时执行 + 结果传递</h3>
+        <p>
+          画布连线编排多步 AI 任务，<span class="mono">{{prev_output}}</span> 自动把上一步结果喂给下一步。
+          支持 cron 与固定间隔，调度器保证重启不重复注册、任务不并发堆积。
+        </p>
+      </div>
+    </div>
+
+    <div class="code">
+<pre><span class="cm"># 业务层唯一依赖的接口 —— 只有三个方法</span>
+<span class="kw">class</span> <span class="fn">AiEngine</span>(Protocol):
+    <span class="kw">async def</span> <span class="fn">chat</span>(...)            -&gt; str
+    <span class="kw">async def</span> <span class="fn">knowledge_query</span>(...) -&gt; KnowledgeAnswer
+    <span class="kw">async def</span> <span class="fn">stream_chat</span>(...)     -&gt; AsyncIterator[str]
+
+<span class="cm"># 两个实现，环境变量切换：
+#   DifyEngine              → 复用 Dify CE Service API（headless）
+#   OpenAICompatibleEngine  → 标准 /chat/completions，适配 DeepSeek / 通义等
+# 未配置密钥时优雅降级：普通端点返回 503，流式端点在事件流中报错后收尾</span>
+</pre>
+    </div>
+
+    <div class="feature" style="margin-top:16px">
+      <div class="feat">
+        <h3>RAG：够用就好，不堆中间件</h3>
+        <p>
+          解析 → 切片 → 检索 → 拼装提示词。检索用关键词算法（中文滑动二元组切词），
+          在几千篇文档量级下效果足够，且<strong>零依赖、可解释、可调试</strong>。接口是 Protocol，将来换向量检索不动上层。
+        </p>
+      </div>
+      <div class="feat">
+        <h3>副驾不依赖 function calling</h3>
+        <p>
+          用一次非流式调用让模型输出 JSON 意图，正则抓取 + <strong>动作白名单校验</strong>，非法一律回退为普通问答。
+          好处是两个引擎通用，不被某家模型的能力差异绑住。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 架构 ────────────────────────────────────────────── -->
+  <section class="sec" id="arch">
+    <div class="eyebrow">架构</div>
+    <h2 class="sec-title">分层架构</h2>
+    <p class="sec-lede">
+      全栈跑在一个 Docker Compose 里，所有业务端口只绑 <span class="mono">127.0.0.1</span>，
+      对外只暴露 nginx 网关。前端同源部署，因此<strong>完全没有 CORS 配置</strong>。
+    </p>
+
+    <div class="arch">
+      <div class="band">
+        <div class="bl">入口层</div>
+        <div class="nodes">
+          <span class="node"><b>nginx 网关</b><span class="sub">唯一对外入口 · / · /api/ · /health</span></span>
+        </div>
+      </div>
+      <div class="band">
+        <div class="bl">应用层</div>
+        <div class="nodes">
+          <span class="node"><b>前端 SPA</b><span class="sub">REACT 18 · VITE · TAILWIND</span></span>
+          <span class="node"><b>后端 API</b><span class="sub">FASTAPI · 异步单体 · 16 路由模块</span></span>
+        </div>
+      </div>
+      <div class="band">
+        <div class="bl">领域层</div>
+        <div class="nodes">
+          <span class="node">智能体</span>
+          <span class="node">工作流引擎</span>
+          <span class="node">RAG</span>
+          <span class="node">AI 副驾</span>
+          <span class="node">通知服务</span>
+        </div>
+      </div>
+      <div class="band">
+        <div class="bl">引擎层</div>
+        <div class="nodes">
+          <span class="node hero-node"><b>AI 引擎适配层</b><span class="sub">3 方法 PROTOCOL · 可插拔 · 不锁定模型</span></span>
+        </div>
+      </div>
+      <div class="band">
+        <div class="bl">存储层</div>
+        <div class="nodes">
+          <span class="node">PostgreSQL 16</span>
+          <span class="node">Redis 7</span>
+          <span class="node">Dify CE<span class="sub">可选 · PROFILE 门控</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <caption class="sr-only">技术选型</caption>
+        <thead>
+          <tr><th>层</th><th>技术</th><th>选型理由</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>后端</td><td class="mono">FastAPI · Python 3.12 · SQLAlchemy 2.0 async</td><td>原生异步、自动 OpenAPI、Pydantic v2 校验</td></tr>
+          <tr><td>数据</td><td class="mono">PostgreSQL 16 / SQLite · Alembic</td><td>迁移是唯一建表事实源，无 create_all；本地与 CI 单测零配置</td></tr>
+          <tr><td>调度</td><td class="mono">APScheduler（进程内）</td><td>cron 与固定间隔，零外部依赖</td></tr>
+          <tr><td>前端</td><td class="mono">React 18 · Vite 5 · TypeScript 5.6 · Tailwind 3.4</td><td>自研黑金设计体系，4 套主题热切换</td></tr>
+          <tr><td>画布</td><td class="mono">React Flow 12</td><td>工作流可视化编排，连线合法性前端校验</td></tr>
+          <tr><td>小程序</td><td class="mono">Taro 4.2</td><td>一套代码多端，已接微信订阅消息</td></tr>
+          <tr><td>交付</td><td class="mono">Docker Compose · nginx · GitHub Actions</td><td>一台服务器私有化，一条命令回滚</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 工程质量 ────────────────────────────────────────── -->
+  <section class="sec" id="proof">
+    <div class="eyebrow">工程</div>
+    <h2 class="sec-title">可核验的工程底子</h2>
+    <p class="sec-lede">
+      以下数字取自代码仓库实测，不是估算。自动化测试覆盖认证、权限、智能体、工作流、
+      RAG、副驾、写作、通知、限流等全部核心链路。
+    </p>
+
+    <div class="stats" style="margin-top:22px">
+      <div class="stat"><div class="n">199</div><div class="k">测试用例 / 19 个文件</div></div>
+      <div class="stat"><div class="n">5,385</div><div class="k">后端行数 / 92 文件</div></div>
+      <div class="stat"><div class="n">6,513</div><div class="k">前端行数 / 46 文件</div></div>
+      <div class="stat"><div class="n">15</div><div class="k">数据表</div></div>
+      <div class="stat"><div class="n">8</div><div class="k">数据库迁移版本</div></div>
+    </div>
+
+    <div class="feature" style="margin-top:16px">
+      <div class="feat">
+        <h3>类型系统强制的前后端契约</h3>
+        <p>
+          前端数据层的接口定义由演示模式的 mock 反向锁定——真实 API 与 mock 必须逐方法镜像，
+          漏一个方法 <span class="mono">tsc</span> 直接报错。
+        </p>
+      </div>
+      <div class="feat">
+        <h3>演示模式：任何环境都能演</h3>
+        <p>
+          后端未连接时自动降级为完整的演示态，界面全部可交互，流式输出照常。
+          <strong>客户现场没网也能演</strong>，而后端就绪后自动切真实数据，无需改代码。
+        </p>
+      </div>
+      <div class="feat">
+        <h3>安全防护已内建</h3>
+        <p>
+          JWT 与 bcrypt 认证、四桶独立限流、跨租户统一 404（不泄露资源存在性）、
+          网页抓取带 SSRF 防护（拒私有地址、逐跳校验重定向）。
+        </p>
+      </div>
+      <div class="feat">
+        <h3>私有化交付成本极低</h3>
+        <p>
+          一个 Compose 文件、一台 2C4G 服务器即可完整部署，<strong>可运行在完全离线的内网</strong>。
+          回滚只需一条命令，容器启动自动执行数据库迁移。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 路线图 ──────────────────────────────────────────── -->
+  <section class="sec" id="road">
+    <div class="eyebrow">路线</div>
+    <h2 class="sec-title">进展与规划</h2>
+    <p class="sec-lede">阶段一已基本交付并上线运行，当前正在收尾模板库与开放 API。</p>
+
+    <div class="road">
+      <div class="phase">
+        <div class="no">01<span>进行中</span></div>
+        <div>
+          <h3>阶段一 · 能力闭环 <span class="done">已交付绝大部分</span></h3>
+          <div class="when">0 – 3 个月</div>
+          <p>
+            项目 / 任务 / 笔记 / 文档、看板视图、AI 对话与知识库 RAG、智能体体系、工作流可视化编排与定时调度、
+            AI 副驾、AI 写作、团队与角色权限、通知中心与到期提醒、微信小程序、部署上线与 CI/CD。
+            <span class="todo">待收尾：模板库、开放 API / Webhook。</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="no">02<span>规划中</span></div>
+        <div>
+          <h3>阶段二 · 深度与规模</h3>
+          <div class="when">3 – 6 个月</div>
+          <p>
+            工作流条件分支与并行执行、向量检索升级、主题偏好同步后端、
+            小程序补齐知识库 / 文档 / 工作流、AI 用量计量与配额管理。
+          </p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="no">03<span>规划中</span></div>
+        <div>
+          <h3>阶段三 · 多端与生态</h3>
+          <div class="when">6 – 12 个月</div>
+          <p>
+            H5 与原生 App 端、模板市场与创作者分成、企业版审计日志与 SSO 单点登录。
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 对外介绍话术 ────────────────────────────────────── -->
+  <section class="sec" id="pitch">
+    <div class="eyebrow">怎么讲</div>
+    <h2 class="sec-title">对不同的人，讲不同的那一面</h2>
+    <p class="sec-lede">
+      同一个产品，客户关心省了多少时间，技术负责人关心数据在哪，投资人关心市场空档。
+      选一个受众看对应说法。
+    </p>
+
+    <div class="tabs" role="tablist" aria-label="按受众选择介绍话术">
+      <button role="tab" id="tab-cust" aria-controls="panel-cust" aria-selected="true">潜在客户</button>
+      <button role="tab" id="tab-cto" aria-controls="panel-cto" aria-selected="false" tabindex="-1">技术负责人</button>
+      <button role="tab" id="tab-inv" aria-controls="panel-inv" aria-selected="false" tabindex="-1">投资人</button>
+      <button role="tab" id="tab-part" aria-controls="panel-part" aria-selected="false" tabindex="-1">合作伙伴</button>
+      <button role="tab" id="tab-dev" aria-controls="panel-dev" aria-selected="false" tabindex="-1">技术社区</button>
+    </div>
+
+    <div class="panel" role="tabpanel" id="panel-cust" aria-labelledby="tab-cust" tabindex="0">
+      <div class="panel-inner">
+        <p class="say">
+          「你现在每周花多少时间写周报、盘点项目进度、整理团队文档？
+          这些事 AI智序 都能替你做——周报 30 秒出稿，项目巡检自动跑，例行的分析设成每天自动执行，
+          结果直接推到通知里。界面很简单，不需要培训，也不会要求你换掉现在的工具。」
+        </p>
+        <p class="avoid"><b>不要讲：</b>技术栈、多租户架构、部署方式。客户不关心这些。</p>
+      </div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="panel-cto" aria-labelledby="tab-cto" tabindex="0" hidden>
+      <div class="panel-inner">
+        <p class="say">
+          「一整套系统跑在一个 Docker Compose 里，一台 2C4G 服务器就能私有化部署，
+          也可以跑在完全离线的内网——<strong>数据不出你自己的服务器</strong>。
+          AI 引擎层是协议抽象，你已有的 Dify、DeepSeek 或任何 OpenAI 兼容端点直接接进来，不被锁定。
+          数据库迁移随容器启动自动执行，回滚是一条命令。全部 199 条自动化测试覆盖核心链路。」
+        </p>
+        <p class="avoid"><b>不要讲：</b>产品功能清单。技术负责人要听的是架构决策与边界。</p>
+      </div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="panel-inv" aria-labelledby="tab-inv" tabindex="0" hidden>
+      <div class="panel-inner">
+        <p class="say">
+          「WPS AI 和豆包办公在抢大而全的企业市场，但 5 到 50 人小团队的『轻量 + AI 原生』是个空档——
+          他们的信息散在多个工具里，而现有 AI 产品不认识他们的项目数据。
+          AI智序 从数据模型开始就为 AI 执行而设计，商业化路径清晰：
+          订阅制 + 私有化授权 + AI 用量计量 + 模板市场分成。」
+        </p>
+        <p class="avoid"><b>不要讲：</b>具体功能细节与技术实现。</p>
+      </div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="panel-part" aria-labelledby="tab-part" tabindex="0" hidden>
+      <div class="panel-inner">
+        <p class="say">
+          「交付特别轻——一台服务器就够，可以部署在客户完全离线的内网。
+          演示零依赖：后端没起、现场没网，界面依然完整可交互，因为前端内置了演示模式。
+          支持贴牌与定制，渠道分成可以谈。」
+        </p>
+        <p class="avoid"><b>不要讲：</b>内部路线图与未发布功能。</p>
+      </div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="panel-dev" aria-labelledby="tab-dev" tabindex="0" hidden>
+      <div class="panel-inner">
+        <p class="say">
+          「几个可能有意思的工程取舍：为什么不上 Celery、向量数据库和前端状态管理库；
+          怎么用一份 mock 的反向类型锁定前后端 API 契约，让漏改接口直接编译失败；
+          站内通知怎么用 SAVEPOINT 隔离，保证『通知写失败绝不回滚主流程的运行状态』。」
+        </p>
+        <p class="avoid"><b>不要讲：</b>商业定价与销售话术。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FAQ ─────────────────────────────────────────────── -->
+  <section class="sec" id="faq">
+    <div class="eyebrow">问答</div>
+    <h2 class="sec-title">最常被问到的七个问题</h2>
+
+    <div class="faq">
+      <div class="faq-row">
+        <div class="q">和飞书 / Notion 有什么区别？</div>
+        <div class="a">不替代，做它们的 AI 执行层。信息可以继续放在原工具，AI智序 负责让 AI 真的去干活。</div>
+      </div>
+      <div class="faq-row">
+        <div class="q">和 Dify / Coze 有什么区别？</div>
+        <div class="a">Dify 是给开发者搭 AI 应用的平台，AI智序 是给团队直接用的成品办公台。而且可以复用 Dify 做引擎——已有 Dify 直接接进来。</div>
+      </div>
+      <div class="faq-row">
+        <div class="q">数据安全吗？</div>
+        <div class="a">支持完全私有化部署在内网、可离线运行；数据不出自己的服务器；多租户隔离，跨租户访问一律 404。</div>
+      </div>
+      <div class="faq-row">
+        <div class="q">要换掉现在的工具吗？</div>
+        <div class="a">不需要。可以只用一个模块起步，比如先只用智能体写周报。</div>
+      </div>
+      <div class="faq-row">
+        <div class="q">AI 用哪家模型？</div>
+        <div class="a">都可以。引擎层是协议抽象，Dify、DeepSeek、通义或任何 OpenAI 兼容端点自由切换，不锁定。</div>
+      </div>
+      <div class="faq-row">
+        <div class="q">支持多少人？</div>
+        <div class="a">定位 5–50 人小团队。三级角色（owner / member / readonly）+ 邀请链接机制。</div>
+      </div>
+      <div class="faq-row">
+        <div class="q">手机能用吗？</div>
+        <div class="a">微信小程序端已上线，含登录、工作台、项目、智能体与到期订阅消息提醒。</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>AI智序 · ProjectHub AI — 轻量 AI 办公工作台</span>
+    <span class="mono">阶段一交付中 · 2026</span>
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+
+  function select(tab) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      var panel = document.getElementById(t.getAttribute('aria-controls'));
+      if (panel) panel.hidden = !on;
+    });
+  }
+
+  tabs.forEach(function (tab, i) {
+    tab.addEventListener('click', function () { select(tab); });
+    tab.addEventListener('keydown', function (e) {
+      var next = null;
+      if (e.key === 'ArrowRight') next = tabs[(i + 1) % tabs.length];
+      else if (e.key === 'ArrowLeft') next = tabs[(i - 1 + tabs.length) % tabs.length];
+      else if (e.key === 'Home') next = tabs[0];
+      else if (e.key === 'End') next = tabs[tabs.length - 1];
+      if (next) { e.preventDefault(); select(next); next.focus(); }
+    });
+  });
+})();
+</script>
