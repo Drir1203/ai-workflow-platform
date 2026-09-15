@@ -118,6 +118,9 @@ docker compose -f docker-compose.yml -f compose.dify.yml --profile dify up -d
 
 日常更新 = push main → CI 跑测试/构建 → deploy.yml SSH 到服务器执行 `bash /opt/projecthub-ai/cicd-deploy.sh`。
 
+> `deploy.yml` 配了 `paths-ignore`（`**.md` / `docs/**` / `design-previews/**`）：**纯文档提交不会触发生产重建**。
+> 只要提交里混有任何代码改动，部署照常执行。需要强制部署时用 GitHub 上的 `workflow_dispatch` 手动触发（不受路径过滤影响）。
+
 ---
 
 ## 5. Secrets 清单

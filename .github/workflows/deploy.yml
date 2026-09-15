@@ -3,6 +3,13 @@ name: Deploy Production
 on:
   push:
     branches: [main]
+    # 纯文档改动不触发生产重建：docs/ 与 design-previews/ 的变更不影响任何运行时产物，
+    # 却会连带触发一次完整的 docker compose build + 服务重启，属无谓的生产变更。
+    # 注意：混有代码的提交仍会正常部署（paths-ignore 只在「全部改动都被忽略」时跳过）。
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'design-previews/**'
   workflow_dispatch:
 
 jobs:
