@@ -4,7 +4,7 @@
 
 在线体验：<https://veyawork.work> —— 登录页点「**无需注册，直接体验**」即可进入预置样例数据的演示租户。
 
-[![CI](https://github.com/Drir1203/ai-workflow-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Drir1203/ai-workflow-platform/actions/workflows/ci.yml)
+[![CI](https://github.com/felixfeng-ai/ai-workflow-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/felixfeng-ai/ai-workflow-platform/actions/workflows/ci.yml)
 
 ---
 
