@@ -1,7 +1,7 @@
 {
   "miniprogramRoot": "./dist",
   "projectname": "projecthub-ai-miniapp",
-  "description": "AI智序 小程序端（黑金旗舰）",
+  "description": "雅秩 小程序端（黑金旗舰）",
   "appid": "touristappid",
   "setting": {
     "urlCheck": false,

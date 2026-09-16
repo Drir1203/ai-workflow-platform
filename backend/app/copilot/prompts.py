@@ -20,7 +20,7 @@ def build_intent_prompt(messages: list[dict], context: dict) -> str:
     agents = json.dumps(context.get("agents") or [], ensure_ascii=False)
     workflows = json.dumps(context.get("workflows") or [], ensure_ascii=False)
     projects = json.dumps(context.get("projects") or [], ensure_ascii=False)
-    return f"""你是「AI智序」工作台的 AI 副驾调度器。用户用自然语言提请求，你必须把它解析为唯一一个 JSON 对象。只输出 JSON，不要输出任何其他文字。
+    return f"""你是「雅秩」工作台的 AI 副驾调度器。用户用自然语言提请求，你必须把它解析为唯一一个 JSON 对象。只输出 JSON，不要输出任何其他文字。
 
 可执行动作 action（只能选一个）：
 - answer         普通问答/闲聊/总结对话内容，不执行任何系统操作

@@ -51,10 +51,10 @@ let projects: Project[] = [
     deploy_url: null, local_path: null, created_at: iso(30), updated_at: iso(1),
   },
   {
-    id: 'p-3', name: 'AI智序 平台', status: 'planning',
+    id: 'p-3', name: '雅秩 平台', status: 'planning',
     description: '工作流平台 · 黑金旗舰主题 · Web/小程序/App',
     color: '#A9762B', repo_url: 'https://github.com/Drir1203/ai-workflow-platform',
-    deploy_url: 'https://projecthub.example.app', local_path: 'D:\\Project\\ai-workflow-platform',
+    deploy_url: 'https://veyawork.work', local_path: 'D:\\Project\\ai-workflow-platform',
     created_at: iso(2), updated_at: iso(0, 8),
   },
   {

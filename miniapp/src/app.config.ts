@@ -9,7 +9,7 @@ export default defineAppConfig({
     backgroundTextStyle: 'dark',
     backgroundColor: '#0C0C0B',
     navigationBarBackgroundColor: '#0C0C0B',
-    navigationBarTitleText: 'AI智序',
+    navigationBarTitleText: '雅秩',
     navigationBarTextStyle: 'white',
   },
 })

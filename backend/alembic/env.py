@@ -1,4 +1,4 @@
-"""AI智序 - Alembic Migration Environment."""
+"""雅秩 - Alembic Migration Environment."""
 
 import asyncio
 from logging.config import fileConfig

@@ -35,7 +35,7 @@ export default function Login() {
         <View style={{ width: '96rpx', height: '96rpx', borderRadius: '24rpx', background: 'linear-gradient(135deg,#E8C078,#A9762B)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '28rpx' }}>
           <Text style={{ color: '#1A1406', fontSize: '44rpx', fontWeight: 700 }}>P</Text>
         </View>
-        <Text style={{ fontSize: '48rpx', fontWeight: 650, color: 'var(--ink)', letterSpacing: '-1rpx' }}>AI智序</Text>
+        <Text style={{ fontSize: '48rpx', fontWeight: 650, color: 'var(--ink)', letterSpacing: '-1rpx' }}>VeyaWork 雅秩</Text>
         <Text style={{ fontSize: '26rpx', color: 'var(--ink-3)', marginTop: '12rpx' }}>管理你的项目、任务与 AI 工作流</Text>
       </View>
 

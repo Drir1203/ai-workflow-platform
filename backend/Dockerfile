@@ -1,4 +1,4 @@
-# ProjectHub AI - Backend Dockerfile
+# VeyaWork - Backend Dockerfile
 # 多阶段构建：依赖层 → 运行时层（仿 VeyaShip 模式，pyproject.toml 构建）
 
 # ════════════════════════════════════════════════════════════════

@@ -2,7 +2,7 @@
   "name": "miniapp",
   "version": "1.0.0",
   "private": true,
-  "description": "AI智序 小程序端",
+  "description": "雅秩 小程序端",
   "templateInfo": {
     "name": "default",
     "typescript": true,

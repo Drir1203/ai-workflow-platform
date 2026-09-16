@@ -1,4 +1,4 @@
-# ProjectHub AI - Frontend Dockerfile
+# VeyaWork - Frontend Dockerfile
 # 多阶段构建：Node 构建 → Nginx 运行（仿 VeyaShip 模式）
 
 # ════════════════════════════════════════════════════════════════

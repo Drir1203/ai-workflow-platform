@@ -1,4 +1,4 @@
-# AI智序 部署文档
+# VeyaWork 雅秩 部署文档
 
 阿里云 ECS + Docker Compose + GitHub Actions。本文档把「首次手动上线」列成清单——仓库里代码/CI 文件已全部就绪，服务器侧步骤需人工按清单执行。
 
