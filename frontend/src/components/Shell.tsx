@@ -14,7 +14,18 @@ import { AgentsPage } from '../pages/AgentsPage'
 import { TeamPage } from '../pages/TeamPage'
 import { WorkflowsPage } from '../pages/WorkflowsPage'
 
-export function Shell({ mode, onLogout }: { mode: Mode; onLogout?: () => void }) {
+export function Shell({
+  mode,
+  onLogout,
+  onRetryConnect,
+  retrying,
+}: {
+  mode: Mode
+  onLogout?: () => void
+  /** 演示模式横幅上的「重试连接」；由 App 传入，live 模式不传 */
+  onRetryConnect?: () => void
+  retrying?: boolean
+}) {
   const layer: DataLayer = mode === 'demo' ? demoApi : api
   const [view, setView] = useState<View>({ name: 'dashboard' })
   const [projects, setProjects] = useState<Project[]>([])
@@ -89,10 +100,24 @@ export function Shell({ mode, onLogout }: { mode: Mode; onLogout?: () => void })
   return (
     <div className="flex h-dvh flex-col bg-bg">
       <TopBar mode={mode} layer={layer} user={user} onLogout={onLogout} />
+      {/* 演示模式横幅：刻意用 error 红而非品牌金 —— 这代表"你看到的不是真实
+          数据"，必须一眼可见（演示投影时尤其），不能伪装成正常状态。 */}
       {mode === 'demo' && (
-        <div className="flex items-center gap-2 border-b border-gold/15 bg-gold-tint/40 px-5 py-1.5 text-[11px] text-gold">
-          <span className="h-1.5 w-1.5 animate-pulseDot rounded-full bg-gold" style={{ boxShadow: '0 0 6px rgba(217,164,65,.8)' }} />
-          演示模式 · 后端未连接，展示结构样例数据；启动后端后自动切换真实数据
+        <div className="flex items-center gap-2 border-b border-error/25 bg-error/10 px-5 py-2 text-[11.5px] text-error">
+          <span className="h-1.5 w-1.5 shrink-0 animate-pulseDot rounded-full bg-error" />
+          <span className="shrink-0 font-medium">演示模式</span>
+          <span className="min-w-0 flex-1 truncate text-error/85">
+            后端未连接：当前为内存样例数据，AI 回复是预设文案，均非真实数据
+          </span>
+          {onRetryConnect && (
+            <button
+              onClick={onRetryConnect}
+              disabled={retrying}
+              className="shrink-0 rounded-md border border-error/35 px-2 py-0.5 font-medium transition-colors duration-150 hover:bg-error/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 disabled:opacity-50"
+            >
+              {retrying ? '重试中…' : '重试连接'}
+            </button>
+          )}
         </div>
       )}
       {error && (

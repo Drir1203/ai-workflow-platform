@@ -95,7 +95,8 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
         </Card>
 
         <p className="mt-5 text-center text-[11px] leading-relaxed text-ink-5">
-          后端未启动时，页面会自动进入演示模式展示结构样例，无需登录。
+          连不上后端时页面会退回演示模式，届时展示的是内存样例数据与预设回复，
+          并非真实数据；登录后所见才是平台真实内容。
         </p>
       </div>
     </div>
