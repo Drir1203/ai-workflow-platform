@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { cn } from '../lib/cn'
 import type { DataLayer } from '../lib/view'
 import { Button } from '../components/ui/button'
 import { Input, Textarea } from '../components/ui/input'
+import { Markdown } from '../components/ui/markdown'
 import type { Doc, WritingOperation } from '../types'
 
 export function DocEditor({
@@ -188,10 +187,7 @@ export function DocEditor({
       ) : (
         <div className="min-h-[360px] flex-1 overflow-y-auto rounded-xl border border-line-soft bg-elev1 p-5">
           {content.trim() ? (
-            // react-markdown v10 移除 className prop，样式挂在 wrapper 上
-            <div className="md-body">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-            </div>
+            <Markdown>{content}</Markdown>
           ) : (
             <p className="text-[12px] text-ink-5">暂无内容</p>
           )}

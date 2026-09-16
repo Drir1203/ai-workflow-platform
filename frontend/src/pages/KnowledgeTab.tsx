@@ -4,6 +4,7 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Empty } from '../components/ui/empty'
 import { Textarea } from '../components/ui/input'
+import { Markdown } from '../components/ui/markdown'
 import type { DataLayer } from '../lib/view'
 import type { KnowledgeDocument, KnowledgeResponse, Project } from '../types'
 
@@ -206,7 +207,7 @@ export function KnowledgeTab({ layer, project }: { layer: DataLayer; project: Pr
           {result && (
             <div className="flex flex-col gap-3 pt-1">
               <div className="rounded-lg border border-line-soft bg-elev1 p-3">
-                <div className="whitespace-pre-wrap text-[12px] leading-relaxed text-ink-2">{result.answer}</div>
+                <Markdown compact>{result.answer}</Markdown>
               </div>
               {result.sources.length > 0 && (
                 <div className="flex flex-col gap-2">

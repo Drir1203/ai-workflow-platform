@@ -5,6 +5,7 @@ import { Card } from '../components/ui/card'
 import { Dialog } from '../components/ui/dialog'
 import { Empty } from '../components/ui/empty'
 import { Input, Textarea } from '../components/ui/input'
+import { Markdown } from '../components/ui/markdown'
 import type { DataLayer } from '../lib/view'
 import type { AgentInfo, AgentParam, AgentParamType, AgentRun, ParamTemplate, Project, RunStatus } from '../types'
 
@@ -409,9 +410,10 @@ export function AgentsPage({ layer, projects }: { layer: DataLayer; projects: Pr
                           {run.error ?? '运行失败，无错误详情'}
                         </pre>
                       ) : (
-                        <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-ink-2">
-                          {run.output ?? '（无输出内容）'}
-                        </pre>
+                        // 智能体产出是 Markdown 正文，走渲染而非裸文本
+                        <Markdown compact className="max-h-64 overflow-y-auto">
+                          {run.output || '（无输出内容）'}
+                        </Markdown>
                       )}
                     </div>
                   )}
@@ -520,9 +522,9 @@ export function AgentsPage({ layer, projects }: { layer: DataLayer; projects: Pr
               {result.status === 'failed' ? (
                 <pre className="whitespace-pre-wrap font-mono text-[11.5px] leading-relaxed text-error">{result.error}</pre>
               ) : (
-                <pre className="max-h-56 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-ink-2">
-                  {result.output}
-                </pre>
+                <Markdown compact className="max-h-56 overflow-y-auto">
+                  {result.output || '（无输出内容）'}
+                </Markdown>
               )}
             </div>
           )}

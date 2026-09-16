@@ -144,3 +144,36 @@ body {
 .md-body a { color: rgb(var(--gold)); text-decoration: underline; text-underline-offset: 2px; }
 .md-body a:hover { color: rgb(var(--gold-primary)); }
 .md-body img { max-width: 100%; border-radius: 8px; }
+
+/* ===== 紧凑变体：运行记录 / 面板输出等密集区域 =====
+   与文档预览（.md-body，13px）区分：字号收一档、标题与间距整体压紧，
+   避免 h1 的 20px + 下边框在小面板里喧宾夺主。
+   必须定义在 .md-body 之后 —— 选择器同优先级，靠源码顺序覆盖。 */
+.md-body-compact {
+  font-size: 12px;
+  line-height: 1.7;
+}
+.md-body-compact h1,
+.md-body-compact h2,
+.md-body-compact h3,
+.md-body-compact h4 {
+  margin: 1em 0 .4em;
+}
+.md-body-compact h1 {
+  font-size: 15px;
+  border-bottom: 0;   /* 面板内不需要分隔线，视觉噪音 */
+  padding-bottom: 0;
+}
+.md-body-compact h2 { font-size: 13.5px; }
+.md-body-compact h3 { font-size: 12.5px; }
+.md-body-compact h4 { font-size: 12px; }
+.md-body-compact p { margin: .5em 0; }
+.md-body-compact ul,
+.md-body-compact ol { margin: .5em 0; padding-left: 1.3em; }
+.md-body-compact li { margin: .15em 0; }
+.md-body-compact pre { margin: .6em 0; padding: .6em .8em; }
+.md-body-compact blockquote { margin: .6em 0; }
+.md-body-compact table { margin: .6em 0; }
+.md-body-compact th,
+.md-body-compact td { padding: .35em .55em; }
+.md-body-compact hr { margin: .9em 0; }

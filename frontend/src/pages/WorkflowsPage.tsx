@@ -5,6 +5,7 @@ import { Card } from '../components/ui/card'
 import { Dialog } from '../components/ui/dialog'
 import { Empty } from '../components/ui/empty'
 import { Input, Textarea } from '../components/ui/input'
+import { Markdown } from '../components/ui/markdown'
 import { WorkflowCanvas, type WorkflowCanvasHandle } from '../components/workflow/WorkflowCanvas'
 import { WORKFLOW_TEMPLATES } from '../lib/workflowTemplates'
 import type { DataLayer } from '../lib/view'
@@ -417,9 +418,9 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
                               {res.label || agentName(res.agent_key)}
                               <span className="ml-1.5 font-mono text-[10px] text-ink-5">{res.agent_key}</span>
                             </div>
-                            <pre className="whitespace-pre-wrap rounded-lg bg-elev1 p-2.5 text-[12px] leading-relaxed text-ink-2">
-                              {res.output ?? '（无输出内容）'}
-                            </pre>
+                            <Markdown compact className="rounded-lg bg-elev1 p-2.5">
+                              {res.output || '（无输出内容）'}
+                            </Markdown>
                           </div>
                         ))
                       ) : (
@@ -625,9 +626,9 @@ export function WorkflowsPage({ layer, projects }: { layer: DataLayer; projects:
                     <span className="text-[12.5px] font-medium text-ink">{res.label}</span>
                     <span className="font-mono text-[10px] text-ink-5">{agentName(res.agent_key)}</span>
                   </div>
-                  <pre className="max-h-44 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-ink-2">
-                    {res.output}
-                  </pre>
+                  <Markdown compact className="max-h-44 overflow-y-auto">
+                    {res.output || '（无输出内容）'}
+                  </Markdown>
                 </div>
               ))}
             </>

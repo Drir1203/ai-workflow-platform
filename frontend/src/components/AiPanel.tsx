@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '../lib/cn'
 import { Button } from './ui/button'
+import { Markdown } from './ui/markdown'
 import type { DataLayer } from '../lib/view'
 import type { CopilotEvent, CopilotMessage, CopilotResultKind } from '../types'
 
@@ -17,12 +18,22 @@ interface ChatMsg {
   blocks: Block[]
 }
 
+// 欢迎语本身也得是规范 Markdown：单换行在 Markdown 里会被合并成一行，
+// 所以用空行分段 + 列表写法（渲染见 components/ui/markdown.tsx）。
 const WELCOME: ChatMsg = {
   role: 'assistant',
   blocks: [
     {
       kind: 'text',
-      text: '我是「雅秩」AI 副驾，可以用自然语言直接指挥平台干活。\n试着对我说：\n· 帮我写本周周报\n· 部署流程是什么\n· 创建一个高优任务',
+      text: [
+        '我是「雅秩」AI 副驾，可以用自然语言直接指挥平台干活。',
+        '',
+        '试着对我说：',
+        '',
+        '- 帮我写本周周报',
+        '- 部署流程是什么',
+        '- 创建一个高优任务',
+      ].join('\n'),
     },
   ],
 }
@@ -139,12 +150,12 @@ export function AiPanel({ layer }: { layer: DataLayer }) {
     }
     if (b.kind === 'result') {
       const d = b.data ?? {}
-      // agent 输出量大：灰底可滚动容器，whitespace-pre-wrap 保留换行
+      // agent 输出量大：灰底可滚动容器；内容是 Markdown，走渲染而非裸文本
       if (b.resultKind === 'agent') {
         return (
-          <div key={i} className="mt-1.5 max-h-52 overflow-y-auto whitespace-pre-wrap rounded-md border border-line-strong bg-bg/70 p-2.5 text-[12px] text-ink-2">
+          <Markdown key={i} compact className="mt-1.5 max-h-52 overflow-y-auto rounded-md border border-line-strong bg-bg/70 p-2.5">
             {String(d.output ?? '')}
-          </div>
+          </Markdown>
         )
       }
       const title = String(d.title ?? d.name ?? '完成')
@@ -166,9 +177,9 @@ export function AiPanel({ layer }: { layer: DataLayer }) {
       )
     }
     return (
-      <div key={i} className="whitespace-pre-wrap">
-        {b.text}
-      </div>
+      <Markdown key={i} compact>
+        {b.text ?? ''}
+      </Markdown>
     )
   }
 
