@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from './ui/button'
 import { Textarea } from './ui/input'
+import { Markdown } from './ui/markdown'
 import type { Note } from '../types'
 
 export function NoteCard({
@@ -54,9 +55,15 @@ export function NoteCard({
           </div>
         </div>
       ) : (
-        <p className="mt-1.5 text-[12px] leading-relaxed text-ink-3">
-          {note.content || <span className="text-ink-5">（空白笔记）</span>}
-        </p>
+        // 笔记正文按 Markdown 渲染：以前直接塞进 <p>，写 ## / 表格 / **加粗**
+        // 的笔记会原样暴露成源码。与 AI 产出一致走共享渲染入口。
+        note.content ? (
+          <Markdown compact className="mt-1.5">
+            {note.content}
+          </Markdown>
+        ) : (
+          <p className="mt-1.5 text-[12px] text-ink-5">（空白笔记）</p>
+        )
       )}
       <div className="mt-2 font-mono text-[10px] tabular-nums text-ink-5">
         {note.updated_at.slice(0, 16).replace('T', ' ')}

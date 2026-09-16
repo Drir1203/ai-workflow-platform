@@ -11,6 +11,7 @@ from ..core.security import create_access_token, hash_password, verify_password
 from ..db import get_db
 from ..models.user import User
 from ..schemas.user import LoginRequest, RegisterRequest, TokenResponse, UserRead
+from ..services.guest import ensure_guest
 from .deps import resolve_invite
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -64,6 +65,23 @@ async def login(
     user = result.scalar_one_or_none()
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid email or password")
+    return TokenResponse(
+        access_token=create_access_token(user.id), user=UserRead.model_validate(user)
+    )
+
+
+@router.post("/guest", response_model=TokenResponse)
+async def guest_login(
+    _rl: None = Depends(_auth_limit),
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """访客体验入口：免注册换取共享演示租户的 token。
+
+    与 login 共用同一个 auth 限流桶（同 IP 每分钟上限），避免被拿来刷账号创建。
+    """
+    if not settings.guest_access_enabled:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="访客入口已关闭")
+    user = await ensure_guest(db)
     return TokenResponse(
         access_token=create_access_token(user.id), user=UserRead.model_validate(user)
     )

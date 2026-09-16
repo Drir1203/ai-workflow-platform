@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     ratelimit_llm_per_min: int = 20  # AI 对话/知识问答，控成本
     ratelimit_run_per_min: int = 10  # Agent/工作流触发，防误触
     ratelimit_upload_per_min: int = 30  # 文档上传
+    # 访客体验入口（POST /api/auth/guest）：免注册进入共享演示租户。
+    # 公开部署上这是一个对匿名访客开放的门，不需要时置 false 关掉。
+    guest_access_enabled: bool = True
     # 微信小程序订阅消息（R16）
     wechat_appid: str = ""
     wechat_secret: str = ""

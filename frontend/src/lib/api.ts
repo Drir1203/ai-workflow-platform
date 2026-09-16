@@ -122,6 +122,8 @@ async function upload<T>(path: string, file: File): Promise<T> {
 export const api = {
   login: (email: string, password: string) =>
     request<AuthResponse>('POST', '/api/auth/login', { email, password }),
+  /** 访客体验入口：免注册换取共享演示租户的 token（后端保证该账号与样例数据存在） */
+  guestLogin: () => request<AuthResponse>('POST', '/api/auth/guest'),
   register: (email: string, password: string, name: string, inviteCode?: string) =>
     request<AuthResponse>('POST', '/api/auth/register', {
       email,
