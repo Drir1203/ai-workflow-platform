@@ -14,11 +14,11 @@
 
 三个立足点：
 
-| | 说明 |
-| --- | --- |
-| **AI 是参与者，不是聊天框** | 智能体与工作流运行在真实业务数据上，产出直接落回项目（笔记 / 运行记录） |
-| **自动化可编排、可定时** | 多个智能体串成有序步骤，上一步的产出用 `{{prev_output}}` 注入下一步；支持 cron 与固定间隔调度 |
-| **开箱可见，不留空壳** | 未登录/后端不可达时自动进演示模式，访客入口一键进入带样例数据的租户 —— 拿给别人看不需要先教他注册 |
+|                             | 说明                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------- |
+| **AI 是参与者，不是聊天框** | 智能体与工作流运行在真实业务数据上，产出直接落回项目（笔记 / 运行记录）                           |
+| **自动化可编排、可定时**    | 多个智能体串成有序步骤，上一步的产出用 `{{prev_output}}` 注入下一步；支持 cron 与固定间隔调度     |
+| **开箱可见，不留空壳**      | 未登录/后端不可达时自动进演示模式，访客入口一键进入带样例数据的租户 —— 拿给别人看不需要先教他注册 |
 
 ### 能力地图
 
@@ -35,14 +35,14 @@
 
 ## 技术栈
 
-| 层 | 选型 |
-| --- | --- |
-| 后端 | Python 3.12 · FastAPI · SQLAlchemy 2.0 (async) · Alembic · Pydantic v2 · APScheduler |
-| 前端 | React 18 · TypeScript 5.6 · Vite 5 · Tailwind CSS 3.4 · React Flow (`@xyflow/react`) · react-markdown |
-| 小程序 | Taro + React + TypeScript（微信端，订阅消息提醒） |
-| 数据库 | PostgreSQL 16（生产） / SQLite（本地与单测） |
-| AI | 可插拔引擎：`dify`（Dify CE headless） 或 `openai_compatible`（DeepSeek / 通义等 OpenAI 协议端点） |
-| 交付 | Docker Compose · Nginx · GitHub Actions（CI + 自动部署） |
+| 层     | 选型                                                                                                  |
+| ------ | ----------------------------------------------------------------------------------------------------- |
+| 后端   | Python 3.12 · FastAPI · SQLAlchemy 2.0 (async) · Alembic · Pydantic v2 · APScheduler                  |
+| 前端   | React 18 · TypeScript 5.6 · Vite 5 · Tailwind CSS 3.4 · React Flow (`@xyflow/react`) · react-markdown |
+| 小程序 | Taro + React + TypeScript（微信端，订阅消息提醒）                                                     |
+| 数据库 | PostgreSQL 16（生产） / SQLite（本地与单测）                                                          |
+| AI     | 可插拔引擎：`dify`（Dify CE headless） 或 `openai_compatible`（DeepSeek / 通义等 OpenAI 协议端点）    |
+| 交付   | Docker Compose · Nginx · GitHub Actions（CI + 自动部署）                                              |
 
 ---
 
@@ -144,13 +144,13 @@ design-previews/         设计预览稿
 
 ## 文档索引
 
-| 文档 | 内容 |
-| --- | --- |
-| [docs/platform-overview.md](docs/platform-overview.md) | **平台全景**：定位、能力地图、技术选型理由、9 个核心技术方案、数据模型、路线图、对外介绍话术 |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | 部署与运维：环境变量、Docker Compose、香港反代、排障 |
-| [DESIGN.md](DESIGN.md) | 设计体系：色彩、排版、组件规范 |
-| [docs/competitive-analysis.md](docs/competitive-analysis.md) | 竞品分析 |
-| [research/AI_WORKFLOW_PLATFORM_PLAN.md](research/AI_WORKFLOW_PLATFORM_PLAN.md) | 立项规划 |
+| 文档                                                                           | 内容                                                                                         |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| [docs/platform-overview.md](docs/platform-overview.md)                         | **平台全景**：定位、能力地图、技术选型理由、9 个核心技术方案、数据模型、路线图、对外介绍话术 |
+| [DEPLOYMENT.md](DEPLOYMENT.md)                                                 | 部署与运维：环境变量、Docker Compose、香港反代、排障                                         |
+| [DESIGN.md](DESIGN.md)                                                         | 设计体系：色彩、排版、组件规范                                                               |
+| [docs/competitive-analysis.md](docs/competitive-analysis.md)                   | 竞品分析                                                                                     |
+| [research/AI_WORKFLOW_PLATFORM_PLAN.md](research/AI_WORKFLOW_PLATFORM_PLAN.md) | 立项规划                                                                                     |
 
 ---
 
@@ -159,7 +159,3 @@ design-previews/         设计预览稿
 - 后端 93 个文件 / 5,633 行，前端 47 个文件 / 6,708 行
 - 21 个测试文件 / 191 个用例，CI 双跑：内存 SQLite 单测 + 真实 PostgreSQL 集成测试（走迁移）
 - CI 每次推送跑后端测试与前端构建；`main` 分支自动部署生产
-
-## 许可
-
-私有项目，未经授权请勿分发。
